@@ -5,6 +5,7 @@ Discord Finance News Bot - Enhanced Edition v2
 - World events kept open: geopolitics + US government news shown regardless
 - Live prices from Yahoo Finance (free)
 - Sentiment indicators
+- Live Watchlist Performance Scoreboard (Percentage Change Only)
 """
 
 import discord
@@ -34,7 +35,6 @@ ASIA_WATCHLIST = [
 ]
 
 # ============ COMPANY NAME → TICKER MAPPING ============
-# News articles say "Nvidia" not "NVDA". This catches both.
 NAME_TO_TICKER = {
     # US Large Caps
     'nvidia': 'NVDA',
@@ -63,7 +63,7 @@ NAME_TO_TICKER = {
     'sp500': 'SPY',
     'spdr s&p': 'SPY',
     
-    # International (very important — Asia stocks often referenced by name)
+    # International
     'xiaomi': '1810',
     'ping an': '601318',
     'icbc': '601398',
@@ -178,22 +178,15 @@ def summarize_simple(title, description):
 
 # ============ SMART STOCK MATCHING ============
 def find_stock_mentions(text):
-    """
-    Find watchlist stocks mentioned by:
-    1. Ticker symbol (word boundaries)
-    2. Company name (case-insensitive)
-    """
     mentioned = []
     text_upper = text.upper()
     text_lower = text.lower()
     
-    # Match tickers exactly
     for ticker in WATCHLIST:
         pattern = r'\b' + re.escape(ticker) + r'\b'
         if re.search(pattern, text_upper) and ticker not in mentioned:
             mentioned.append(ticker)
     
-    # Match company names
     for name, ticker in NAME_TO_TICKER.items():
         if ticker in WATCHLIST and name in text_lower:
             if ticker not in mentioned:
@@ -204,11 +197,6 @@ def find_stock_mentions(text):
 
 # ============ NEWS FETCH ============
 def fetch_news(session):
-    """
-    Two buckets:
-    - 'markets' = stock-specific news (FILTERED strictly)
-    - 'world' = geopolitics + US government (NO filter)
-    """
     print(f"[*] Fetching news for {session}...")
     articles = []
     
@@ -266,13 +254,41 @@ def build_embeds(articles):
     )
     embeds.append(header)
     
+    # ===== NEW: HOLDINGS DIRECTION SCOREBOARD =====
+    perf_embed = discord.Embed(
+        title="📅 TODAY'S HOLDINGS DIRECTION",
+        description="*Daily direction compared to previous market close*",
+        color=0x2b2d31  # Clean Discord-native background style
+    )
+    
+    perf_lines = []
+    print(f"[*] Fetching daily direction for all {len(WATCHLIST)} positions...")
+    for ticker in sorted(WATCHLIST):
+        price_data = get_stock_price(ticker)
+        if price_data:
+            pct = price_data['change_pct']
+            emoji = "🟩" if pct >= 0 else "🟥"
+            sign = "+" if pct >= 0 else ""
+            perf_lines.append(f"{emoji} **{ticker}**: {sign}{pct:.2f}%")
+        else:
+            perf_lines.append(f"⚪ **{ticker}**: Data error")
+            
+    # Split list in half to build clean dual-column layouts on Discord
+    half = (len(perf_lines) + 1) // 2
+    col1 = "\n".join(perf_lines[:half])
+    col2 = "\n".join(perf_lines[half:])
+    
+    perf_embed.add_field(name="Positions", value=col1, inline=True)
+    perf_embed.add_field(name="Positions (Cont.)", value=col2, inline=True)
+    embeds.append(perf_embed)
+    
     # Tag every article with matched stocks
     for article in articles:
         title = article.get("title", "") or ""
         desc = article.get("description", "") or ""
         article['_matched_stocks'] = find_stock_mentions(f"{title} {desc}")
     
-    # ===== YOUR HOLDINGS =====
+    # ===== YOUR HOLDINGS IN THE NEWS =====
     all_mentioned_stocks = set()
     for article in articles:
         all_mentioned_stocks.update(article['_matched_stocks'])
@@ -284,7 +300,7 @@ def build_embeds(articles):
             color=0x534AB7
         )
         
-        print(f"[*] Fetching prices for {len(all_mentioned_stocks)} stocks...")
+        print(f"[*] Fetching detailed prices for mentioned stocks...")
         for ticker in sorted(all_mentioned_stocks):
             price_data = get_stock_price(ticker)
             price_str = format_price(price_data, ticker)
