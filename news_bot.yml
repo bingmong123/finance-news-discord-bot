@@ -1,0 +1,83 @@
+name: Finance News Bot
+
+# ============================================================
+# Schedule is in UTC. Currently set for PDT (March - November).
+# When DST ends in November, add 1 hour to each UTC time.
+# Example: '0 13' → '0 14' for PST
+# ============================================================
+
+on:
+  schedule:
+    # 🇺🇸 US Pre-market: 6:00 AM PT = 13:00 UTC (Mon-Fri)
+    # Covers overnight news + weekend (Mon morning catches Fri-Sun)
+    - cron: '0 13 * * 1-5'
+    
+    # 📊 US Midday #1: 9:00 AM PT = 16:00 UTC (Mon-Fri)
+    # 2.5 hours after market open, sees how stocks reacted
+    - cron: '0 16 * * 1-5'
+    
+    # 📊 US Midday #2: 11:30 AM PT = 18:30 UTC (Mon-Fri)
+    # 1.5 hours before close, late-session moves
+    - cron: '30 18 * * 1-5'
+    
+    # 🌏 Asia Pre-market: 8:00 PM PT = 03:00 UTC next day
+    # = 11:00 AM Beijing time (before lunch)
+    # Sun-Thu PT nights = Mon-Fri UTC days
+    - cron: '0 3 * * 1-5'
+  
+  # Manual trigger from GitHub UI (great for testing)
+  workflow_dispatch:
+    inputs:
+      session:
+        description: 'Which session to run'
+        required: true
+        default: 'us_premarket'
+        type: choice
+        options:
+          - us_premarket
+          - us_midday
+          - asia
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install discord.py requests
+      
+      - name: Determine session
+        id: session
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Manual trigger uses dropdown selection
+            echo "session=${{ github.event.inputs.session }}" >> $GITHUB_OUTPUT
+          else
+            # Scheduled trigger: detect by UTC hour
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" == "13" ]; then
+              echo "session=us_premarket" >> $GITHUB_OUTPUT
+            elif [ "$HOUR" == "03" ]; then
+              echo "session=asia" >> $GITHUB_OUTPUT
+            else
+              # Catches both midday slots (16:00 and 18:30 UTC)
+              echo "session=us_midday" >> $GITHUB_OUTPUT
+            fi
+          fi
+      
+      - name: Run bot
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          SESSION: ${{ steps.session.outputs.session }}
+        run: python bot_enhanced.py
