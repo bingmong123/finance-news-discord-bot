@@ -2,6 +2,12 @@
 
 > A free, market-hours-aware Discord bot that delivers personalized finance news with stock prices, sentiment analysis, and your watchlist highlighted.
 
+[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![Python](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)](https://github.com/features/actions)
+
 ---
 
 ## ✨ What It Does
@@ -109,7 +115,7 @@ Edit `bot_enhanced.py` and update the `US_WATCHLIST` and `ASIA_WATCHLIST` arrays
 
 ## 🎨 What It Looks Like
 
-Each briefing includes:
+Sample output from a real run (data from Friday, May 15, 2026 close):
 
 ```
 🇺🇸 US PRE-MARKET
@@ -121,26 +127,33 @@ Good morning briefing
 🎯 YOUR HOLDINGS IN THE NEWS
 Stocks from your watchlist with current prices
 
-🚀 NVDA $875.40 (+2.34%)
-💬 Nvidia announces breakthrough in AI chip efficiency...
+🔴 NVDA $231.03 (-2.00%)
+💬 Nvidia cleared to sell H200 chips to China ahead of May 20 earnings...
 
-🔴 PLTR $24.10 (-1.21%)
-💬 Palantir faces delays in defense contract rollout...
+🔴 PLTR $133.99 (-0.69%)
+💬 PLTR caught in broader selloff as 30-year Treasury tops 5%...
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 
 📈 MARKETS & ECONOMY
 
-▸ Fed signals possible rate cut in June meeting
-   Markets rallied on signals from the Federal Reserve...
-   🐂 Bullish • 📰 Bloomberg
-   📊 Mentioned: SPY, MSFT
+▸ Dow drops 381 points led by Caterpillar, NVIDIA losses
+   Inflation concerns and rising bond yields weighed on tech...
+   🐻 Bearish • 📰 MSN
+   📊 Mentioned: NVDA, SPY
+
+▸ BofA raises NVDA price target to $320 on AI data center demand
+   Analyst cites $1.7T AI infrastructure TAM forecast...
+   🐂 Bullish • 📰 TheStreet
+   📊 Mentioned: NVDA
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 
 🌍 WORLD EVENTS
 [Geopolitical news with sentiment analysis]
 ```
+
+*Note: prices update live each time the bot runs — this is just a snapshot.*
 
 ---
 
