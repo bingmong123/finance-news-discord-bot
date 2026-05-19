@@ -22,6 +22,23 @@ DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 SESSION = os.getenv("SESSION", "us_premarket")
 
+# ============================================================
+# 🎯 CUSTOMIZE YOUR WATCHLISTS BELOW
+# ============================================================
+# Add your own stock tickers here. Examples:
+#   US stocks: 'AAPL', 'GOOGL', 'TSLA', 'AMZN'
+#   ETFs: 'SPY', 'QQQ', 'VOO'
+#   Hong Kong: '0700' (Tencent), '9988' (Alibaba)
+#   Shanghai: '601318' (Ping An)
+#   Singapore: 'D05' (DBS)
+#   Malaysia: 'MAYBANK'
+#   Taiwan: '2330' (TSMC)
+#
+# IMPORTANT: After changing your watchlist, you may want to update
+# NAME_TO_TICKER below (line ~85) and ASIA_YAHOO_FORMAT (line ~50)
+# to ensure proper news matching and price fetching.
+# ============================================================
+
 # ============ WATCHLISTS ============
 US_WATCHLIST = [
     'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
