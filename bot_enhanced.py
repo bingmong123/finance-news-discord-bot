@@ -6,11 +6,10 @@ Discord Finance News Bot - Enhanced Edition v3
 - World events kept open: geopolitics + US government
 - Live prices from Yahoo Finance
 - Sentiment indicators
-- Slash commands for manual briefing triggers
+- One-shot mode: runs once and exits (perfect for GitHub Actions)
 """
 
 import discord
-from discord import app_commands
 import requests
 import os
 import sys
@@ -37,19 +36,18 @@ ASIA_WATCHLIST = [
 ]
 
 # ============ YAHOO FINANCE TICKER FORMAT (for Asia) ============
-# Maps short ticker → Yahoo Finance format with exchange suffix
 ASIA_YAHOO_FORMAT = {
-    '1810': '1810.HK',      # Xiaomi - Hong Kong
-    '823': '0823.HK',       # Link REIT - Hong Kong
-    '2618': '2618.HK',      # JinkoSolar - Hong Kong
-    '601318': '601318.SS',  # Ping An - Shanghai
-    '601398': '601398.SS',  # ICBC - Shanghai
-    '601288': '601288.SS',  # Agricultural Bank of China - Shanghai
-    '600019': '600019.SS',  # Baosteel - Shanghai
-    'MAYBANK': '1155.KL',   # Maybank - Bursa Malaysia
+    '1810': '1810.HK',      # Xiaomi
+    '823': '0823.HK',       # Link REIT
+    '2618': '2618.HK',      # JinkoSolar
+    '601318': '601318.SS',  # Ping An
+    '601398': '601398.SS',  # ICBC
+    '601288': '601288.SS',  # Agricultural Bank of China
+    '600019': '600019.SS',  # Baosteel
+    'MAYBANK': '1155.KL',   # Maybank
     'S68': 'S68.SI',        # Singapore Exchange
-    'Y92': 'Y92.SI',        # Thai Beverage - Singapore
-    '5347': '5347.KL',      # Tenaga - Malaysia
+    'Y92': 'Y92.SI',        # Thai Beverage
+    '5347': '5347.KL',      # Tenaga
 }
 
 # ============ COMPANY NAME → TICKER MAPPING ============
@@ -172,7 +170,6 @@ def find_stock_mentions(text):
 
 # ============ YAHOO FINANCE NEWS (per-ticker) ============
 def get_yahoo_news(ticker, count=3):
-    """Fetch news for a specific ticker from Yahoo Finance."""
     yahoo_ticker = ASIA_YAHOO_FORMAT.get(ticker, ticker)
     articles = []
     try:
@@ -189,7 +186,7 @@ def get_yahoo_news(ticker, count=3):
                     'source': {'name': item.get('publisher', 'Yahoo Finance')},
                     'url': item.get('link', ''),
                     'category': 'markets',
-                    '_pre_matched': [ticker],  # Pre-matched to this ticker
+                    '_pre_matched': [ticker],
                 })
     except Exception as e:
         print(f"  [!] Yahoo news fetch failed for {ticker}: {e}")
@@ -200,11 +197,11 @@ def get_yahoo_news(ticker, count=3):
 def fetch_news(session):
     print(f"[*] Fetching news for {session}...")
     articles = []
-    seen_titles = set()  # For deduplication
+    seen_titles = set()
     
     try:
         if session == "asia":
-            # ===== SOURCE 1: Yahoo Finance per-ticker (best for Asia stocks) =====
+            # Yahoo Finance per-ticker
             print("[*] Fetching Yahoo Finance news per ticker...")
             for ticker in ASIA_WATCHLIST:
                 yahoo_articles = get_yahoo_news(ticker, count=2)
@@ -215,7 +212,7 @@ def fetch_news(session):
                         articles.append(a)
             print(f"[+] Yahoo Finance: {len(articles)} unique articles")
             
-            # ===== SOURCE 2: NewsAPI for macro Asia news =====
+            # NewsAPI macro
             print("[*] Fetching NewsAPI macro news...")
             queries = [
                 ("china hong kong stock market", "markets", 4),
@@ -238,7 +235,6 @@ def fetch_news(session):
                             seen_titles.add(title_key)
                             a["category"] = category
                             articles.append(a)
-            
         else:
             # US sessions: NewsAPI only
             queries = [
@@ -304,9 +300,8 @@ def build_embeds(session_type):
     )
     embeds.append(header)
     
-    # Tag every article with matched stocks
+    # Tag every article
     for article in articles:
-        # Use pre-matched stocks from Yahoo Finance if available
         if article.get('_pre_matched'):
             article['_matched_stocks'] = article['_pre_matched']
         else:
@@ -425,39 +420,13 @@ def build_embeds(session_type):
     return embeds
 
 
-# ============ MAIN BOT ============
+# ============ MAIN BOT (One-shot mode) ============
 intents = discord.Intents.default()
-intents.message_content = True
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
-
-@tree.command(name="news", description="Get a finance briefing")
-@app_commands.describe(session="Which briefing would you like?")
-@app_commands.choices(session=[
-    app_commands.Choice(name="US - Pre Market", value="us_premarket"),
-    app_commands.Choice(name="US - Mid Day", value="us_midday"),
-    app_commands.Choice(name="Asia - Market", value="asia"),
-])
-async def news_command(interaction: discord.Interaction, session: str):
-    await interaction.response.defer()
-    try:
-        embeds = build_embeds(session)
-        channel = client.get_channel(DISCORD_CHANNEL_ID)
-        if not channel:
-            channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
-        for embed in embeds:
-            await channel.send(embed=embed)
-        await interaction.followup.send(f"✅ Sent briefing!", ephemeral=True)
-    except Exception as e:
-        print(f"[!] Error: {e}")
-        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-
 
 @client.event
 async def on_ready():
     print(f"[+] Connected as {client.user}")
-    await tree.sync()
-    print("[+] Slash commands synced!")
     
     if SESSION:
         try:
@@ -468,7 +437,7 @@ async def on_ready():
                 channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
             for embed in embeds:
                 await channel.send(embed=embed)
-            print("[✓] Scheduled briefing sent!")
+            print("[✓] Briefing sent successfully!")
         except Exception as e:
             print(f"[!] Error sending: {e}")
             import traceback
