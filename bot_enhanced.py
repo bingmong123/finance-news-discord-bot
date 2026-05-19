@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Discord Finance News Bot - Enhanced Edition v2
-- Strict filter: market news must mention YOUR stocks (by ticker or company name)
-- World events kept open: geopolitics + US government news shown regardless
-- Live prices from Yahoo Finance (free)
+Discord Finance News Bot - Enhanced Edition v3
+- Multi-source Asia news: Yahoo Finance (per-ticker) + NewsAPI (macro)
+- Strict filter for US news (only watchlist mentions)
+- World events kept open: geopolitics + US government
+- Live prices from Yahoo Finance
 - Sentiment indicators
 - Slash commands for manual briefing triggers
 """
@@ -20,7 +21,6 @@ import re
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
-
 SESSION = os.getenv("SESSION", "us_premarket")
 
 # ============ WATCHLISTS ============
@@ -36,54 +36,41 @@ ASIA_WATCHLIST = [
     'TWD', '601398', 'MAYBANK', '601288', 'Y92', '2618', '600019'
 ]
 
+# ============ YAHOO FINANCE TICKER FORMAT (for Asia) ============
+# Maps short ticker → Yahoo Finance format with exchange suffix
+ASIA_YAHOO_FORMAT = {
+    '1810': '1810.HK',      # Xiaomi - Hong Kong
+    '823': '0823.HK',       # Link REIT - Hong Kong
+    '2618': '2618.HK',      # JinkoSolar - Hong Kong
+    '601318': '601318.SS',  # Ping An - Shanghai
+    '601398': '601398.SS',  # ICBC - Shanghai
+    '601288': '601288.SS',  # Agricultural Bank of China - Shanghai
+    '600019': '600019.SS',  # Baosteel - Shanghai
+    'MAYBANK': '1155.KL',   # Maybank - Bursa Malaysia
+    'S68': 'S68.SI',        # Singapore Exchange
+    'Y92': 'Y92.SI',        # Thai Beverage - Singapore
+    '5347': '5347.KL',      # Tenaga - Malaysia
+}
+
 # ============ COMPANY NAME → TICKER MAPPING ============
 NAME_TO_TICKER = {
-    # US Large Caps
-    'nvidia': 'NVDA',
-    'palantir': 'PLTR',
-    'microsoft': 'MSFT',
-    'cisco': 'CSCO',
-    'cisco systems': 'CSCO',
-    'netflix': 'NFLX',
-    'pepsi': 'PEP',
-    'pepsico': 'PEP',
-    'spotify': 'SPOT',
-    'zoom': 'ZM',
-    'zoom video': 'ZM',
-    'altria': 'MO',
-    'nasdaq inc': 'NDAQ',
-    'general mills': 'GIS',
-    'enterprise products': 'EPD',
-    'energy transfer': 'ET',
-    'thredup': 'TDUP',
-    'sylvamo': 'SLVM',
-    'main street capital': 'MAIN',
-    'ares capital': 'ARCC',
-    
-    # ETF / Index references
-    's&p 500': 'SPY',
-    's&p500': 'SPY',
-    'sp500': 'SPY',
-    'spdr s&p': 'SPY',
-    
-    # International
-    'xiaomi': '1810',
-    'ping an': '601318',
-    'icbc': '601398',
+    'nvidia': 'NVDA', 'palantir': 'PLTR', 'microsoft': 'MSFT',
+    'cisco': 'CSCO', 'cisco systems': 'CSCO', 'netflix': 'NFLX',
+    'pepsi': 'PEP', 'pepsico': 'PEP', 'spotify': 'SPOT',
+    'zoom': 'ZM', 'zoom video': 'ZM', 'altria': 'MO',
+    'nasdaq inc': 'NDAQ', 'general mills': 'GIS',
+    'enterprise products': 'EPD', 'energy transfer': 'ET',
+    'thredup': 'TDUP', 'sylvamo': 'SLVM',
+    'main street capital': 'MAIN', 'ares capital': 'ARCC',
+    's&p 500': 'SPY', 's&p500': 'SPY', 'sp500': 'SPY', 'spdr s&p': 'SPY',
+    'xiaomi': '1810', 'ping an': '601318', 'icbc': '601398',
     'industrial and commercial bank of china': '601398',
     'agricultural bank of china': '601288',
-    'jinkosolar': '2618',
-    'jinko solar': '2618',
-    'baosteel': '600019',
-    'maybank': 'MAYBANK',
-    'malayan banking': 'MAYBANK',
-    'cnh industrial': 'CNH',
-    'link reit': '823',
-    'thai beverage': 'Y92',
-    'singapore exchange': 'S68',
-    
-    # EV
-    'nio inc': 'NIO',
+    'jinkosolar': '2618', 'jinko solar': '2618',
+    'baosteel': '600019', 'maybank': 'MAYBANK',
+    'malayan banking': 'MAYBANK', 'cnh industrial': 'CNH',
+    'link reit': '823', 'thai beverage': 'Y92',
+    'singapore exchange': 'S68', 'nio inc': 'NIO',
 }
 
 # ============ SENTIMENT ============
@@ -94,10 +81,12 @@ BEARISH_KEYWORDS = ['plunge', 'fall', 'drop', 'decline', 'crash', 'tumble', 'mis
                     'cut', 'downgrade', 'sell', 'bearish', 'weak', 'negative', 'concern',
                     'slump', 'underperform', 'warning', 'risk', 'fear']
 
+
 # ============ STOCK PRICE ============
 def get_stock_price(ticker):
+    yahoo_ticker = ASIA_YAHOO_FORMAT.get(ticker, ticker)
     try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_ticker}"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
@@ -162,7 +151,7 @@ def summarize_simple(title, description):
     return first_sent
 
 
-# ============ SMART STOCK MATCHING ============
+# ============ STOCK MATCHING ============
 def find_stock_mentions(text):
     mentioned = []
     text_upper = text.upper()
@@ -181,42 +170,97 @@ def find_stock_mentions(text):
     return mentioned
 
 
-# ============ NEWS FETCH ============
+# ============ YAHOO FINANCE NEWS (per-ticker) ============
+def get_yahoo_news(ticker, count=3):
+    """Fetch news for a specific ticker from Yahoo Finance."""
+    yahoo_ticker = ASIA_YAHOO_FORMAT.get(ticker, ticker)
+    articles = []
+    try:
+        url = "https://query1.finance.yahoo.com/v1/finance/search"
+        params = {'q': yahoo_ticker, 'newsCount': count, 'quotesCount': 0}
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, params=params, headers=headers, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            for item in data.get('news', []):
+                articles.append({
+                    'title': item.get('title', ''),
+                    'description': item.get('summary', '') or item.get('title', ''),
+                    'source': {'name': item.get('publisher', 'Yahoo Finance')},
+                    'url': item.get('link', ''),
+                    'category': 'markets',
+                    '_pre_matched': [ticker],  # Pre-matched to this ticker
+                })
+    except Exception as e:
+        print(f"  [!] Yahoo news fetch failed for {ticker}: {e}")
+    return articles
+
+
+# ============ NEWS FETCH (Multi-source) ============
 def fetch_news(session):
     print(f"[*] Fetching news for {session}...")
     articles = []
+    seen_titles = set()  # For deduplication
     
     try:
         if session == "asia":
+            # ===== SOURCE 1: Yahoo Finance per-ticker (best for Asia stocks) =====
+            print("[*] Fetching Yahoo Finance news per ticker...")
+            for ticker in ASIA_WATCHLIST:
+                yahoo_articles = get_yahoo_news(ticker, count=2)
+                for a in yahoo_articles:
+                    title_key = a.get('title', '')[:60].lower()
+                    if title_key and title_key not in seen_titles:
+                        seen_titles.add(title_key)
+                        articles.append(a)
+            print(f"[+] Yahoo Finance: {len(articles)} unique articles")
+            
+            # ===== SOURCE 2: NewsAPI for macro Asia news =====
+            print("[*] Fetching NewsAPI macro news...")
             queries = [
-                ("asia stocks china japan earnings", "markets", 5),
+                ("china hong kong stock market", "markets", 4),
                 ("asia trade policy china japan government", "world", 3),
+                ("singapore malaysia thailand economy", "markets", 3),
             ]
+            for query, category, count in queries:
+                response = requests.get(
+                    "https://newsapi.org/v2/everything",
+                    params={
+                        "q": query, "sortBy": "publishedAt", "pageSize": count,
+                        "language": "en", "apiKey": NEWSAPI_KEY
+                    },
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    for a in response.json().get("articles", []):
+                        title_key = (a.get('title', '') or '')[:60].lower()
+                        if title_key and title_key not in seen_titles:
+                            seen_titles.add(title_key)
+                            a["category"] = category
+                            articles.append(a)
+            
         else:
+            # US sessions: NewsAPI only
             queries = [
                 ("US stock market earnings nasdaq", "markets", 6),
                 ("federal reserve treasury congress white house", "world", 2),
                 ("geopolitical trade tariff sanctions", "world", 2),
             ]
+            for query, category, count in queries:
+                response = requests.get(
+                    "https://newsapi.org/v2/everything",
+                    params={
+                        "q": query, "sortBy": "publishedAt", "pageSize": count,
+                        "language": "en", "apiKey": NEWSAPI_KEY
+                    },
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    for a in response.json().get("articles", []):
+                        a["category"] = category
+                        articles.append(a)
         
-        for query, category, count in queries:
-            response = requests.get(
-                "https://newsapi.org/v2/everything",
-                params={
-                    "q": query,
-                    "sortBy": "publishedAt",
-                    "pageSize": count,
-                    "language": "en",
-                    "apiKey": NEWSAPI_KEY
-                },
-                timeout=10
-            )
-            if response.status_code == 200:
-                for a in response.json().get("articles", []):
-                    a["category"] = category
-                    articles.append(a)
-        
-        print(f"[+] Fetched {len(articles)} articles")
+        print(f"[+] Total: {len(articles)} articles")
     except Exception as e:
         print(f"[!] Error fetching news: {e}")
     
@@ -225,7 +269,6 @@ def fetch_news(session):
 
 # ============ BUILD EMBEDS ============
 def build_embeds(session_type):
-    # Determine session details
     if session_type == "us_premarket":
         SESSION_NAME = "🇺🇸 US - Pre Market"
         SESSION_DESC = "Good morning briefing"
@@ -236,21 +279,19 @@ def build_embeds(session_type):
         SESSION_DESC = "Market check-in"
         SESSION_COLOR = 0xEF9F27
         WATCHLIST_LOCAL = US_WATCHLIST
-    else:  # asia
+    else:
         SESSION_NAME = "🌏 Asia - Market"
-        SESSION_DESC = "Before Asia trading"
+        SESSION_DESC = "Multi-source Asia briefing"
         SESSION_COLOR = 0x7F77DD
         WATCHLIST_LOCAL = ASIA_WATCHLIST
     
-    # Set global WATCHLIST for matching
     global WATCHLIST
     WATCHLIST = WATCHLIST_LOCAL
     
-    articles = fetch_news(session_type.replace("_1", "").replace("_2", ""))
-    
+    articles = fetch_news(session_type)
     embeds = []
     
-    # ===== HEADER =====
+    # HEADER
     header = discord.Embed(
         title=f"# {SESSION_NAME}",
         description=(
@@ -263,13 +304,17 @@ def build_embeds(session_type):
     )
     embeds.append(header)
     
-    # Tag every article
+    # Tag every article with matched stocks
     for article in articles:
-        title = article.get("title", "") or ""
-        desc = article.get("description", "") or ""
-        article['_matched_stocks'] = find_stock_mentions(f"{title} {desc}")
+        # Use pre-matched stocks from Yahoo Finance if available
+        if article.get('_pre_matched'):
+            article['_matched_stocks'] = article['_pre_matched']
+        else:
+            title = article.get("title", "") or ""
+            desc = article.get("description", "") or ""
+            article['_matched_stocks'] = find_stock_mentions(f"{title} {desc}")
     
-    # ===== YOUR HOLDINGS =====
+    # YOUR HOLDINGS
     all_mentioned_stocks = set()
     for article in articles:
         all_mentioned_stocks.update(article['_matched_stocks'])
@@ -302,7 +347,7 @@ def build_embeds(session_type):
         
         embeds.append(holdings_embed)
     
-    # ===== MARKETS =====
+    # MARKETS (STRICT FILTER)
     market_articles = [a for a in articles if a.get("category") == "markets"]
     filtered_market = [a for a in market_articles if a['_matched_stocks']]
     
@@ -313,7 +358,7 @@ def build_embeds(session_type):
             color=0x1D9E75
         )
         
-        for article in filtered_market[:5]:
+        for article in filtered_market[:6]:
             title = article.get("title", "")
             description = article.get("description", "") or ""
             source = article.get("source", {}).get("name", "Unknown")
@@ -333,17 +378,17 @@ def build_embeds(session_type):
     else:
         empty_embed = discord.Embed(
             title="📈 MARKETS & YOUR STOCKS",
-            description="_No news today mentions stocks in your watchlist. Markets are quiet for your holdings._",
+            description="_No news today mentions stocks in your watchlist._",
             color=0x888780
         )
         embeds.append(empty_embed)
     
-    # ===== WORLD EVENTS =====
+    # WORLD EVENTS
     world_articles = [a for a in articles if a.get("category") == "world"]
     if world_articles:
         world_embed = discord.Embed(
             title="🌍 WORLD EVENTS & POLICY",
-            description="*Geopolitics, Fed, and US government*",
+            description="*Geopolitics, Fed, and government policy*",
             color=0xD85A30
         )
         
@@ -366,12 +411,12 @@ def build_embeds(session_type):
         
         embeds.append(world_embed)
     
-    # ===== FOOTER =====
+    # FOOTER
     footer = discord.Embed(
         description=(
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "✅ **Brief complete** — Have a great trading day!\n"
-            "_Filtered to your holdings • Powered by NewsAPI + Yahoo Finance_"
+            "_Filtered to your holdings • Powered by Yahoo Finance + NewsAPI_"
         ),
         color=0x888780
     )
@@ -394,19 +439,15 @@ tree = app_commands.CommandTree(client)
     app_commands.Choice(name="Asia - Market", value="asia"),
 ])
 async def news_command(interaction: discord.Interaction, session: str):
-    """Manually trigger a news briefing."""
     await interaction.response.defer()
-    
     try:
         embeds = build_embeds(session)
         channel = client.get_channel(DISCORD_CHANNEL_ID)
         if not channel:
             channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
-        
         for embed in embeds:
             await channel.send(embed=embed)
-        
-        await interaction.followup.send(f"✅ Sent {session.replace('_', ' ').title()} briefing!", ephemeral=True)
+        await interaction.followup.send(f"✅ Sent briefing!", ephemeral=True)
     except Exception as e:
         print(f"[!] Error: {e}")
         await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
@@ -418,7 +459,6 @@ async def on_ready():
     await tree.sync()
     print("[+] Slash commands synced!")
     
-    # If running from GitHub Actions (SESSION env var set), send automatically
     if SESSION:
         try:
             print(f"[*] Running scheduled session: {SESSION}")
@@ -426,7 +466,6 @@ async def on_ready():
             channel = client.get_channel(DISCORD_CHANNEL_ID)
             if not channel:
                 channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
-            
             for embed in embeds:
                 await channel.send(embed=embed)
             print("[✓] Scheduled briefing sent!")
@@ -442,11 +481,9 @@ async def main():
     print("="*50)
     print("Finance News Bot - Starting")
     print("="*50)
-    
     if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID or not NEWSAPI_KEY:
         print("[!] Missing required environment variables")
         sys.exit(1)
-    
     await client.start(DISCORD_TOKEN)
 
 
