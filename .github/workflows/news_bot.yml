@@ -1,29 +1,29 @@
 name: Finance News Bot
 
 # ============================================================
-# Schedule is in UTC. Currently set for PDT (March - November).
-# When DST ends in November, add 1 hour to each UTC time.
-# Example: '0 13' → '0 14' for PST
+# Schedule is in UTC. Currently set for PST (UTC-8).
+# When DST starts in March 2027, subtract 1 hour from each UTC time.
+# Example: '0 14' → '0 13' for PDT
 # ============================================================
 
 on:
   schedule:
-    # 🇺🇸 US Pre-market: 6:00 AM PT = 13:00 UTC (Mon-Fri)
+    # 🇺🇸 US Pre-market: 6:00 AM PST = 14:00 UTC (Mon-Fri)
     # Covers overnight news + weekend (Mon morning catches Fri-Sun)
-    - cron: '0 13 * * 1-5'
+    - cron: '0 14 * * 1-5'
     
-    # 📊 US Midday #1: 9:00 AM PT = 16:00 UTC (Mon-Fri)
+    # 📊 US Midday #1: 9:00 AM PST = 17:00 UTC (Mon-Fri)
     # 2.5 hours after market open, sees how stocks reacted
-    - cron: '0 16 * * 1-5'
+    - cron: '0 17 * * 1-5'
     
-    # 📊 US Midday #2: 11:30 AM PT = 18:30 UTC (Mon-Fri)
+    # 📊 US Midday #2: 11:30 AM PST = 19:30 UTC (Mon-Fri)
     # 1.5 hours before close, late-session moves
-    - cron: '30 18 * * 1-5'
+    - cron: '30 19 * * 1-5'
     
-    # 🌏 Asia Pre-market: 8:00 PM PT = 03:00 UTC next day
-    # = 11:00 AM Beijing time (before lunch)
-    # Sun-Thu PT nights = Mon-Fri UTC days
-    - cron: '0 3 * * 1-5'
+    # 🌏 Asia Pre-market: 10:00 PM PST = 06:00 UTC next day
+    # = 2:00 PM Beijing time (after lunch, before close)
+    # Sun-Thu PST nights = Mon-Fri UTC days
+    - cron: '0 6 * * 0-4'
   
   # Manual trigger from GitHub UI (great for testing)
   workflow_dispatch:
@@ -44,10 +44,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
