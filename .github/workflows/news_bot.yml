@@ -1,27 +1,11 @@
 name: Finance News Bot
 
-# ============================================================
-# Schedule is in UTC. Currently set for PST (UTC-8).
-# When DST starts in March 2027, subtract 1 hour from each UTC time.
-# Example: '0 14' → '0 13' for PDT
-# ============================================================
-
 on:
   schedule:
-    # 🇺🇸 US Pre-market: 6:00 AM PST = 14:00 UTC (Mon-Fri)
-    # Covers overnight news + weekend (Mon morning catches Fri-Sun)
     - cron: '0 14 * * 1-5'
-    
-    # 📊 US Mid Day: 10:30 AM PST = 18:30 UTC (Mon-Fri)
-    # Market check-in during trading hours
     - cron: '30 18 * * 1-5'
-    
-    # 🌏 Asia Market: 10:00 PM PST = 06:00 UTC next day
-    # = 2:00 PM Beijing time (after lunch, before close)
-    # Sun-Thu PST nights = Mon-Fri UTC days
     - cron: '0 6 * * 0-4'
   
-  # Manual trigger from GitHub UI (great for testing)
   workflow_dispatch:
     inputs:
       session:
@@ -48,11 +32,9 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: |
-          pip install discord.py requests
+        run: pip install discord.py requests
       
       - name: Determine session
-        id: session
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             SESSION="${{ github.event.inputs.session }}"
@@ -70,23 +52,7 @@ jobs:
             fi
           fi
           echo "SESSION=$SESSION" >> $GITHUB_ENV
-          echo "session=$SESSION" >> $GITHUB_OUTPUT
-      
-      - name: Verify secrets exist
-        run: |
-          if [ -z "${{ secrets.DISCORD_TOKEN }}" ]; then
-            echo "ERROR: DISCORD_TOKEN secret not set!"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DISCORD_CHANNEL_ID }}" ]; then
-            echo "ERROR: DISCORD_CHANNEL_ID secret not set!"
-            exit 1
-          fi
-          if [ -z "${{ secrets.NEWSAPI_KEY }}" ]; then
-            echo "ERROR: NEWSAPI_KEY secret not set!"
-            exit 1
-          fi
-          echo "✓ All secrets are configured"
+          echo "Running session: $SESSION"
       
       - name: Run bot
         env:
@@ -94,6 +60,4 @@ jobs:
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           SESSION: ${{ env.SESSION }}
-        run: |
-          echo "Running session: $SESSION"
-          python bot_enhanced.py
+        run: python bot_enhanced.py
