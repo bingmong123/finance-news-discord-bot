@@ -5,10 +5,11 @@ Discord Finance News Bot - Enhanced Edition v2
 - World events kept open: geopolitics + US government news shown regardless
 - Live prices from Yahoo Finance (free)
 - Sentiment indicators
-- Live Watchlist Performance Scoreboard (Percentage Change Only)
+- Slash commands for manual briefing triggers
 """
 
 import discord
+from discord import app_commands
 import requests
 import os
 import sys
@@ -24,9 +25,10 @@ SESSION = os.getenv("SESSION", "us_premarket")
 
 # ============ WATCHLISTS ============
 US_WATCHLIST = [
-    'ARCC', 'CCL', 'CSCO', 'EPD', 'ET', 'GOF', 'MSFT','NFLX',
-    'NIO', 'NVDA', 'PEP', 'PLTR', 'TDUP', 'WMT', 'ZM', 'AGNC', 'IRM',
-    'MAIN', 'MO', 'MPT', 'NDAQ', 'O', 'T', 'SLVM'
+    'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
+    'USD', 'SCHY', 'SCHF', 'ARCC', 'GYLD', 'PEP', 'XYLD', 'SCHR', 'XMT',
+    'EPD', 'YMAX', 'ET', 'ZM', 'TDUP', 'GOF', 'SPOT', 'NIO', 'SLVM',
+    'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ', 'GIS'
 ]
 
 ASIA_WATCHLIST = [
@@ -50,6 +52,7 @@ NAME_TO_TICKER = {
     'zoom video': 'ZM',
     'altria': 'MO',
     'nasdaq inc': 'NDAQ',
+    'general mills': 'GIS',
     'enterprise products': 'EPD',
     'energy transfer': 'ET',
     'thredup': 'TDUP',
@@ -83,23 +86,6 @@ NAME_TO_TICKER = {
     'nio inc': 'NIO',
 }
 
-# Active watchlist based on session
-if SESSION == "asia":
-    WATCHLIST = ASIA_WATCHLIST
-    SESSION_NAME = "🌏 ASIA MARKETS"
-    SESSION_DESC = "Before Asia trading session"
-    SESSION_COLOR = 0x7F77DD
-elif SESSION == "us_midday":
-    WATCHLIST = US_WATCHLIST
-    SESSION_NAME = "📊 US MIDDAY UPDATE"
-    SESSION_DESC = "Market check-in"
-    SESSION_COLOR = 0xEF9F27
-else:
-    WATCHLIST = US_WATCHLIST
-    SESSION_NAME = "🇺🇸 US PRE-MARKET"
-    SESSION_DESC = "Good morning briefing"
-    SESSION_COLOR = 0x1D9E75
-
 # ============ SENTIMENT ============
 BULLISH_KEYWORDS = ['surge', 'soar', 'rally', 'gain', 'rise', 'jump', 'beat', 'exceed',
                     'record', 'profit', 'growth', 'upgrade', 'buy', 'bullish', 'strong',
@@ -108,7 +94,7 @@ BEARISH_KEYWORDS = ['plunge', 'fall', 'drop', 'decline', 'crash', 'tumble', 'mis
                     'cut', 'downgrade', 'sell', 'bearish', 'weak', 'negative', 'concern',
                     'slump', 'underperform', 'warning', 'risk', 'fear']
 
-# ============ STOCK PRICE (Yahoo Finance) ============
+# ============ STOCK PRICE ============
 def get_stock_price(ticker):
     try:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
@@ -238,7 +224,30 @@ def fetch_news(session):
 
 
 # ============ BUILD EMBEDS ============
-def build_embeds(articles):
+def build_embeds(session_type):
+    # Determine session details
+    if session_type == "us_premarket":
+        SESSION_NAME = "🇺🇸 US - Pre Market"
+        SESSION_DESC = "Good morning briefing"
+        SESSION_COLOR = 0x1D9E75
+        WATCHLIST_LOCAL = US_WATCHLIST
+    elif session_type == "us_midday":
+        SESSION_NAME = "📊 US - Mid Day"
+        SESSION_DESC = "Market check-in"
+        SESSION_COLOR = 0xEF9F27
+        WATCHLIST_LOCAL = US_WATCHLIST
+    else:  # asia
+        SESSION_NAME = "🌏 Asia - Market"
+        SESSION_DESC = "Before Asia trading"
+        SESSION_COLOR = 0x7F77DD
+        WATCHLIST_LOCAL = ASIA_WATCHLIST
+    
+    # Set global WATCHLIST for matching
+    global WATCHLIST
+    WATCHLIST = WATCHLIST_LOCAL
+    
+    articles = fetch_news(session_type.replace("_1", "").replace("_2", ""))
+    
     embeds = []
     
     # ===== HEADER =====
@@ -254,41 +263,13 @@ def build_embeds(articles):
     )
     embeds.append(header)
     
-    # ===== NEW: HOLDINGS DIRECTION SCOREBOARD =====
-    perf_embed = discord.Embed(
-        title="📅 TODAY'S HOLDINGS DIRECTION",
-        description="*Daily direction compared to previous market close*",
-        color=0x2b2d31  # Clean Discord-native background style
-    )
-    
-    perf_lines = []
-    print(f"[*] Fetching daily direction for all {len(WATCHLIST)} positions...")
-    for ticker in sorted(WATCHLIST):
-        price_data = get_stock_price(ticker)
-        if price_data:
-            pct = price_data['change_pct']
-            emoji = "🟩" if pct >= 0 else "🟥"
-            sign = "+" if pct >= 0 else ""
-            perf_lines.append(f"{emoji} **{ticker}**: {sign}{pct:.2f}%")
-        else:
-            perf_lines.append(f"⚪ **{ticker}**: Data error")
-            
-    # Split list in half to build clean dual-column layouts on Discord
-    half = (len(perf_lines) + 1) // 2
-    col1 = "\n".join(perf_lines[:half])
-    col2 = "\n".join(perf_lines[half:])
-    
-    perf_embed.add_field(name="Positions", value=col1, inline=True)
-    perf_embed.add_field(name="Positions (Cont.)", value=col2, inline=True)
-    embeds.append(perf_embed)
-    
-    # Tag every article with matched stocks
+    # Tag every article
     for article in articles:
         title = article.get("title", "") or ""
         desc = article.get("description", "") or ""
         article['_matched_stocks'] = find_stock_mentions(f"{title} {desc}")
     
-    # ===== YOUR HOLDINGS IN THE NEWS =====
+    # ===== YOUR HOLDINGS =====
     all_mentioned_stocks = set()
     for article in articles:
         all_mentioned_stocks.update(article['_matched_stocks'])
@@ -300,7 +281,7 @@ def build_embeds(articles):
             color=0x534AB7
         )
         
-        print(f"[*] Fetching detailed prices for mentioned stocks...")
+        print(f"[*] Fetching prices for {len(all_mentioned_stocks)} stocks...")
         for ticker in sorted(all_mentioned_stocks):
             price_data = get_stock_price(ticker)
             price_str = format_price(price_data, ticker)
@@ -321,7 +302,7 @@ def build_embeds(articles):
         
         embeds.append(holdings_embed)
     
-    # ===== MARKETS (STRICT FILTER) =====
+    # ===== MARKETS =====
     market_articles = [a for a in articles if a.get("category") == "markets"]
     filtered_market = [a for a in market_articles if a['_matched_stocks']]
     
@@ -357,7 +338,7 @@ def build_embeds(articles):
         )
         embeds.append(empty_embed)
     
-    # ===== WORLD EVENTS (NO FILTER) =====
+    # ===== WORLD EVENTS =====
     world_articles = [a for a in articles if a.get("category") == "world"]
     if world_articles:
         world_embed = discord.Embed(
@@ -399,40 +380,69 @@ def build_embeds(articles):
     return embeds
 
 
-# ============ MAIN ============
+# ============ MAIN BOT ============
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
+@tree.command(name="news", description="Get a finance briefing")
+@app_commands.describe(session="Which briefing would you like?")
+@app_commands.choices(session=[
+    app_commands.Choice(name="US - Pre Market", value="us_premarket"),
+    app_commands.Choice(name="US - Mid Day", value="us_midday"),
+    app_commands.Choice(name="Asia - Market", value="asia"),
+])
+async def news_command(interaction: discord.Interaction, session: str):
+    """Manually trigger a news briefing."""
+    await interaction.response.defer()
+    
+    try:
+        embeds = build_embeds(session)
+        channel = client.get_channel(DISCORD_CHANNEL_ID)
+        if not channel:
+            channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
+        
+        for embed in embeds:
+            await channel.send(embed=embed)
+        
+        await interaction.followup.send(f"✅ Sent {session.replace('_', ' ').title()} briefing!", ephemeral=True)
+    except Exception as e:
+        print(f"[!] Error: {e}")
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@client.event
+async def on_ready():
+    print(f"[+] Connected as {client.user}")
+    await tree.sync()
+    print("[+] Slash commands synced!")
+    
+    # If running from GitHub Actions (SESSION env var set), send automatically
+    if SESSION and SESSION != "us_premarket":
+        try:
+            embeds = build_embeds(SESSION)
+            channel = client.get_channel(DISCORD_CHANNEL_ID)
+            if not channel:
+                channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
+            
+            for embed in embeds:
+                await channel.send(embed=embed)
+            print("[✓] Scheduled briefing sent!")
+        except Exception as e:
+            print(f"[!] Error sending: {e}")
+        finally:
+            await client.close()
+
+
 async def main():
     print("="*50)
-    print(f"Finance News Bot - {SESSION_NAME}")
+    print("Finance News Bot - Starting")
     print("="*50)
     
     if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID or not NEWSAPI_KEY:
         print("[!] Missing required environment variables")
         sys.exit(1)
-    
-    articles = fetch_news(SESSION)
-    if not articles:
-        print("[!] No articles found")
-        sys.exit(0)
-    
-    embeds = build_embeds(articles)
-    
-    intents = discord.Intents.default()
-    client = discord.Client(intents=intents)
-    
-    @client.event
-    async def on_ready():
-        print(f"[+] Connected as {client.user}")
-        try:
-            channel = client.get_channel(DISCORD_CHANNEL_ID)
-            if not channel:
-                channel = await client.fetch_channel(DISCORD_CHANNEL_ID)
-            for embed in embeds:
-                await channel.send(embed=embed)
-            print("[✓] All embeds sent!")
-        except Exception as e:
-            print(f"[!] Error sending: {e}")
-        finally:
-            await client.close()
     
     await client.start(DISCORD_TOKEN)
 
