@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """
 Discord Finance News Bot - Enhanced Edition v3
-- Multi-source Asia news: Yahoo Finance (per-ticker) + NewsAPI (macro)
+================================================
+A free Discord bot that filters finance news to YOUR holdings.
+
+📝 TO CUSTOMIZE: Edit config.py — that's the only file you need to touch!
+   This file contains the bot logic and shouldn't need changes.
+
+Features:
+- Multi-source Asia news (Yahoo Finance per-ticker + NewsAPI macro)
 - Strict filter for US news (only watchlist mentions)
-- World events kept open: geopolitics + US government
+- World events unfiltered (Fed, geopolitics, government)
 - Live prices from Yahoo Finance
 - Sentiment indicators
-- One-shot mode: runs once and exits (perfect for GitHub Actions)
+- One-shot mode for GitHub Actions
 """
 
 import discord
@@ -16,104 +23,16 @@ import sys
 from datetime import datetime
 import re
 
-# ============ CONFIGURATION ============
+# ============ IMPORT YOUR WATCHLIST CONFIG ============
+from config import US_WATCHLIST, ASIA_WATCHLIST, ASIA_YAHOO_FORMAT, NAME_TO_TICKER
+
+# ============ ENVIRONMENT VARIABLES ============
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 SESSION = os.getenv("SESSION", "us_premarket")
 
-# ============================================================
-# 🎯 CUSTOMIZE YOUR WATCHLISTS BELOW
-# ============================================================
-# Add your own stock tickers here. Examples:
-#   US stocks: 'AAPL', 'GOOGL', 'TSLA', 'AMZN'
-#   ETFs: 'SPY', 'QQQ', 'VOO'
-#   Hong Kong: '0700' (Tencent), '9988' (Alibaba)
-#   Shanghai: '601318' (Ping An)
-#   Singapore: 'D05' (DBS)
-#   Malaysia: 'MAYBANK'
-#   Taiwan: '2330' (TSMC)
-#
-# IMPORTANT: After changing your watchlist, you may want to update
-# NAME_TO_TICKER below (line ~85) and ASIA_YAHOO_FORMAT (line ~50)
-# to ensure proper news matching and price fetching.
-# ============================================================
-
-# ============ WATCHLISTS ============
-US_WATCHLIST = [
-    'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
-    'USD', 'SCHY', 'SCHF', 'ARCC', 'GYLD', 'PEP', 'XYLD', 'SCHR', 'XMT',
-    'EPD', 'YMAX', 'ET', 'ZM', 'TDUP', 'GOF', 'SPOT', 'NIO', 'SLVM',
-    'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ', 'GIS'
-]
-
-ASIA_WATCHLIST = [
-    # Singapore
-    'S68', 'S63', 'D05', 'Y92',
-    # Hong Kong
-    '1810', '66', '823',
-    # Shanghai (China A-shares)
-    '601318', '601668', '601288', '601398', '600019',
-    # Taiwan
-    '2618', '2610',
-    # Malaysia
-    'TENAGA', 'MAYBANK'
-]
-
-# ============ YAHOO FINANCE TICKER FORMAT (for Asia) ============
-ASIA_YAHOO_FORMAT = {
-    # Hong Kong (.HK)
-    '1810': '1810.HK',      # Xiaomi
-    '823': '0823.HK',       # Link REIT
-    '66': '0066.HK',        # MTR Corp
-    # Shanghai (.SS)
-    '601318': '601318.SS',  # Ping An
-    '601398': '601398.SS',  # ICBC
-    '601288': '601288.SS',  # Agricultural Bank of China
-    '601668': '601668.SS',  # China State Construction
-    '600019': '600019.SS',  # Baoshan Iron & Steel
-    # Taiwan (.TW)
-    '2618': '2618.TW',      # EVA Airways
-    '2610': '2610.TW',      # China Airlines
-    # Malaysia (.KL)
-    'TENAGA': '5347.KL',    # Tenaga Nasional
-    'MAYBANK': '1155.KL',   # Maybank
-    # Singapore (.SI)
-    'S68': 'S68.SI',        # Singapore Exchange
-    'S63': 'S63.SI',        # Singapore Tech Engineering
-    'D05': 'D05.SI',        # DBS Group
-    'Y92': 'Y92.SI',        # Thai Beverage
-}
-
-# ============ COMPANY NAME → TICKER MAPPING ============
-NAME_TO_TICKER = {
-    'nvidia': 'NVDA', 'palantir': 'PLTR', 'microsoft': 'MSFT',
-    'cisco': 'CSCO', 'cisco systems': 'CSCO', 'netflix': 'NFLX',
-    'pepsi': 'PEP', 'pepsico': 'PEP', 'spotify': 'SPOT',
-    'zoom': 'ZM', 'zoom video': 'ZM', 'altria': 'MO',
-    'nasdaq inc': 'NDAQ', 'general mills': 'GIS',
-    'enterprise products': 'EPD', 'energy transfer': 'ET',
-    'thredup': 'TDUP', 'sylvamo': 'SLVM',
-    'main street capital': 'MAIN', 'ares capital': 'ARCC',
-    's&p 500': 'SPY', 's&p500': 'SPY', 'sp500': 'SPY', 'spdr s&p': 'SPY',
-    'xiaomi': '1810', 'ping an': '601318', 'icbc': '601398',
-    'industrial and commercial bank of china': '601398',
-    'agricultural bank of china': '601288',
-    'china state construction': '601668',
-    'baoshan': '600019', 'baoshan iron': '600019', 'baosteel': '600019',
-    'eva airways': '2618', 'eva air': '2618',
-    'china airlines': '2610',
-    'tenaga': 'TENAGA', 'tenaga nasional': 'TENAGA',
-    'maybank': 'MAYBANK', 'malayan banking': 'MAYBANK',
-    'link reit': '823', 'mtr corp': '66', 'mass transit railway': '66',
-    'thai beverage': 'Y92',
-    'singapore exchange': 'S68',
-    'singapore tech': 'S63', 'singapore technologies': 'S63', 'st engineering': 'S63',
-    'dbs group': 'D05', 'dbs bank': 'D05',
-    'nio inc': 'NIO',
-}
-
-# ============ SENTIMENT ============
+# ============ SENTIMENT KEYWORDS ============
 BULLISH_KEYWORDS = ['surge', 'soar', 'rally', 'gain', 'rise', 'jump', 'beat', 'exceed',
                     'record', 'profit', 'growth', 'upgrade', 'buy', 'bullish', 'strong',
                     'positive', 'boost', 'climb', 'outperform', 'breakthrough']
@@ -235,7 +154,7 @@ def get_yahoo_news(ticker, count=3):
     return articles
 
 
-# ============ NEWS FETCH (Multi-source) ============
+# ============ NEWS FETCH ============
 def fetch_news(session):
     print(f"[*] Fetching news for {session}...")
     articles = []
@@ -243,7 +162,6 @@ def fetch_news(session):
     
     try:
         if session == "asia":
-            # Yahoo Finance per-ticker
             print("[*] Fetching Yahoo Finance news per ticker...")
             for ticker in ASIA_WATCHLIST:
                 yahoo_articles = get_yahoo_news(ticker, count=2)
@@ -254,7 +172,6 @@ def fetch_news(session):
                         articles.append(a)
             print(f"[+] Yahoo Finance: {len(articles)} unique articles")
             
-            # NewsAPI macro
             print("[*] Fetching NewsAPI macro news...")
             queries = [
                 ("china hong kong stock market", "markets", 4),
@@ -278,7 +195,6 @@ def fetch_news(session):
                             a["category"] = category
                             articles.append(a)
         else:
-            # US sessions: NewsAPI only
             queries = [
                 ("US stock market earnings nasdaq", "markets", 6),
                 ("federal reserve treasury congress white house", "world", 2),
@@ -342,7 +258,7 @@ def build_embeds(session_type):
     )
     embeds.append(header)
     
-    # ===== TODAY'S HOLDINGS DIRECTION (ALL watchlist stocks) =====
+    # TODAY'S HOLDINGS DIRECTION (ALL watchlist stocks)
     print(f"[*] Fetching daily direction for all {len(WATCHLIST_LOCAL)} watchlist stocks...")
     direction_embed = discord.Embed(
         title="📊 TODAY'S HOLDINGS DIRECTION",
@@ -372,7 +288,7 @@ def build_embeds(session_type):
             direction_embed.add_field(name="Positions", value="\n".join(positions)[:1024], inline=False)
         embeds.append(direction_embed)
     
-    # Tag every article
+    # Tag every article with matched stocks
     for article in articles:
         if article.get('_pre_matched'):
             article['_matched_stocks'] = article['_pre_matched']
@@ -381,7 +297,7 @@ def build_embeds(session_type):
             desc = article.get("description", "") or ""
             article['_matched_stocks'] = find_stock_mentions(f"{title} {desc}")
     
-    # YOUR HOLDINGS
+    # YOUR HOLDINGS IN NEWS
     all_mentioned_stocks = set()
     for article in articles:
         all_mentioned_stocks.update(article['_matched_stocks'])
@@ -393,7 +309,7 @@ def build_embeds(session_type):
             color=0x534AB7
         )
         
-        print(f"[*] Fetching prices for {len(all_mentioned_stocks)} stocks...")
+        print(f"[*] Fetching prices for {len(all_mentioned_stocks)} stocks in news...")
         for ticker in sorted(all_mentioned_stocks):
             price_data = get_stock_price(ticker)
             price_str = format_price(price_data, ticker)
