@@ -55,28 +55,45 @@ jobs:
         id: session
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger uses dropdown selection
-            echo "session=${{ github.event.inputs.session }}" >> $GITHUB_OUTPUT
+            SESSION="${{ github.event.inputs.session }}"
           else
-            # Scheduled trigger: detect by UTC hour and minute
             HOUR=$(date -u +%H)
             MINUTE=$(date -u +%M)
             if [ "$HOUR" == "14" ]; then
-              echo "session=us_premarket" >> $GITHUB_OUTPUT
+              SESSION="us_premarket"
             elif [ "$HOUR" == "18" ] && [ "$MINUTE" -ge "30" ]; then
-              echo "session=us_midday" >> $GITHUB_OUTPUT
+              SESSION="us_midday"
             elif [ "$HOUR" == "06" ]; then
-              echo "session=asia" >> $GITHUB_OUTPUT
+              SESSION="asia"
             else
-              # Fallback to us_premarket
-              echo "session=us_premarket" >> $GITHUB_OUTPUT
+              SESSION="us_premarket"
             fi
           fi
+          echo "SESSION=$SESSION" >> $GITHUB_ENV
+          echo "session=$SESSION" >> $GITHUB_OUTPUT
+      
+      - name: Verify secrets exist
+        run: |
+          if [ -z "${{ secrets.DISCORD_TOKEN }}" ]; then
+            echo "ERROR: DISCORD_TOKEN secret not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DISCORD_CHANNEL_ID }}" ]; then
+            echo "ERROR: DISCORD_CHANNEL_ID secret not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.NEWSAPI_KEY }}" ]; then
+            echo "ERROR: NEWSAPI_KEY secret not set!"
+            exit 1
+          fi
+          echo "✓ All secrets are configured"
       
       - name: Run bot
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          SESSION: ${{ steps.session.outputs.session }}
-        run: python bot_enhanced.py
+          SESSION: ${{ env.SESSION }}
+        run: |
+          echo "Running session: $SESSION"
+          python bot_enhanced.py
