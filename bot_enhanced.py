@@ -419,8 +419,9 @@ async def on_ready():
     print("[+] Slash commands synced!")
     
     # If running from GitHub Actions (SESSION env var set), send automatically
-    if SESSION and SESSION != "us_premarket":
+    if SESSION:
         try:
+            print(f"[*] Running scheduled session: {SESSION}")
             embeds = build_embeds(SESSION)
             channel = client.get_channel(DISCORD_CHANNEL_ID)
             if not channel:
@@ -431,6 +432,8 @@ async def on_ready():
             print("[✓] Scheduled briefing sent!")
         except Exception as e:
             print(f"[!] Error sending: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             await client.close()
 
