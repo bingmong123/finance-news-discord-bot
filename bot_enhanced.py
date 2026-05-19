@@ -31,23 +31,41 @@ US_WATCHLIST = [
 ]
 
 ASIA_WATCHLIST = [
-    'SGG', 'GII', 'S68', 'CNH', '1810', 'MYR', '601318', '823', '5347',
-    'TWD', '601398', 'MAYBANK', '601288', 'Y92', '2618', '600019'
+    # Singapore
+    'S68', 'S63', 'D05', 'Y92',
+    # Hong Kong
+    '1810', '66', '823',
+    # Shanghai (China A-shares)
+    '601318', '601668', '601288', '601398', '600019',
+    # Taiwan
+    '2618', '2610',
+    # Malaysia
+    'TENAGA', 'MAYBANK'
 ]
 
 # ============ YAHOO FINANCE TICKER FORMAT (for Asia) ============
 ASIA_YAHOO_FORMAT = {
+    # Hong Kong (.HK)
     '1810': '1810.HK',      # Xiaomi
     '823': '0823.HK',       # Link REIT
-    '2618': '2618.HK',      # JinkoSolar
+    '66': '0066.HK',        # MTR Corp
+    # Shanghai (.SS)
     '601318': '601318.SS',  # Ping An
     '601398': '601398.SS',  # ICBC
     '601288': '601288.SS',  # Agricultural Bank of China
-    '600019': '600019.SS',  # Baosteel
+    '601668': '601668.SS',  # China State Construction
+    '600019': '600019.SS',  # Baoshan Iron & Steel
+    # Taiwan (.TW)
+    '2618': '2618.TW',      # EVA Airways
+    '2610': '2610.TW',      # China Airlines
+    # Malaysia (.KL)
+    'TENAGA': '5347.KL',    # Tenaga Nasional
     'MAYBANK': '1155.KL',   # Maybank
+    # Singapore (.SI)
     'S68': 'S68.SI',        # Singapore Exchange
+    'S63': 'S63.SI',        # Singapore Tech Engineering
+    'D05': 'D05.SI',        # DBS Group
     'Y92': 'Y92.SI',        # Thai Beverage
-    '5347': '5347.KL',      # Tenaga
 }
 
 # ============ COMPANY NAME → TICKER MAPPING ============
@@ -64,11 +82,18 @@ NAME_TO_TICKER = {
     'xiaomi': '1810', 'ping an': '601318', 'icbc': '601398',
     'industrial and commercial bank of china': '601398',
     'agricultural bank of china': '601288',
-    'jinkosolar': '2618', 'jinko solar': '2618',
-    'baosteel': '600019', 'maybank': 'MAYBANK',
-    'malayan banking': 'MAYBANK', 'cnh industrial': 'CNH',
-    'link reit': '823', 'thai beverage': 'Y92',
-    'singapore exchange': 'S68', 'nio inc': 'NIO',
+    'china state construction': '601668',
+    'baoshan': '600019', 'baoshan iron': '600019', 'baosteel': '600019',
+    'eva airways': '2618', 'eva air': '2618',
+    'china airlines': '2610',
+    'tenaga': 'TENAGA', 'tenaga nasional': 'TENAGA',
+    'maybank': 'MAYBANK', 'malayan banking': 'MAYBANK',
+    'link reit': '823', 'mtr corp': '66', 'mass transit railway': '66',
+    'thai beverage': 'Y92',
+    'singapore exchange': 'S68',
+    'singapore tech': 'S63', 'singapore technologies': 'S63', 'st engineering': 'S63',
+    'dbs group': 'D05', 'dbs bank': 'D05',
+    'nio inc': 'NIO',
 }
 
 # ============ SENTIMENT ============
@@ -299,6 +324,36 @@ def build_embeds(session_type):
         color=SESSION_COLOR
     )
     embeds.append(header)
+    
+    # ===== TODAY'S HOLDINGS DIRECTION (ALL watchlist stocks) =====
+    print(f"[*] Fetching daily direction for all {len(WATCHLIST_LOCAL)} watchlist stocks...")
+    direction_embed = discord.Embed(
+        title="📊 TODAY'S HOLDINGS DIRECTION",
+        description="*Daily direction compared to previous market close*",
+        color=SESSION_COLOR
+    )
+    
+    positions = []
+    for ticker in WATCHLIST_LOCAL:
+        price_data = get_stock_price(ticker)
+        if price_data:
+            pct = price_data['change_pct']
+            emoji = "🟢" if pct >= 0 else "🔴"
+            sign = "+" if pct >= 0 else ""
+            positions.append(f"{emoji} **{ticker}**: {sign}{pct:.2f}%")
+        else:
+            positions.append(f"⚪ **{ticker}**: N/A")
+    
+    if positions:
+        if len(positions) > 12:
+            mid = (len(positions) + 1) // 2
+            col1 = "\n".join(positions[:mid])
+            col2 = "\n".join(positions[mid:])
+            direction_embed.add_field(name="Positions", value=col1[:1024], inline=True)
+            direction_embed.add_field(name="Positions (Cont.)", value=col2[:1024], inline=True)
+        else:
+            direction_embed.add_field(name="Positions", value="\n".join(positions)[:1024], inline=False)
+        embeds.append(direction_embed)
     
     # Tag every article
     for article in articles:
