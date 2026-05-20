@@ -26,11 +26,19 @@ import re
 # ============ IMPORT YOUR WATCHLIST CONFIG ============
 from config import US_WATCHLIST, ASIA_WATCHLIST, ASIA_YAHOO_FORMAT, NAME_TO_TICKER
 
+# ============ MODULE-LEVEL VARIABLES ============
+WATCHLIST = []
+
 # ============ ENVIRONMENT VARIABLES ============
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 SESSION = os.getenv("SESSION", "us_premarket")
+
+try:
+    DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
+except ValueError as e:
+    print(f"[!] Invalid DISCORD_CHANNEL_ID: {e}")
+    DISCORD_CHANNEL_ID = 0
 
 # ============ SENTIMENT KEYWORDS ============
 BULLISH_KEYWORDS = ['surge', 'soar', 'rally', 'gain', 'rise', 'jump', 'beat', 'exceed',
@@ -101,10 +109,10 @@ def detect_sentiment(text):
 
 
 def summarize_simple(title, description):
-    if not description or len(description) < 20:
+    if not description or not isinstance(description, str) or len(description) < 20:
         return title
     sentences = description.split(". ")
-    first_sent = sentences[0].strip()
+    first_sent = sentences[0].strip() if sentences else title
     if len(first_sent) > 200:
         first_sent = first_sent[:200] + "..."
     return first_sent
@@ -141,14 +149,21 @@ def get_yahoo_news(ticker, count=3):
         if response.status_code == 200:
             data = response.json()
             for item in data.get('news', []):
-                articles.append({
-                    'title': item.get('title', ''),
-                    'description': item.get('summary', '') or item.get('title', ''),
-                    'source': {'name': item.get('publisher', 'Yahoo Finance')},
-                    'url': item.get('link', ''),
-                    'category': 'markets',
-                    '_pre_matched': [ticker],
-                })
+                title = item.get('title', '')
+                description = item.get('summary', '') or item.get('title', '')
+                if title:
+                    articles.append({
+                        'title': title,
+                        'description': description if isinstance(description, str) else '',
+                        'source': {'name': item.get('publisher', 'Yahoo Finance')},
+                        'url': item.get('link', ''),
+                        'category': 'markets',
+                        '_pre_matched': [ticker],
+                    })
+        else:
+            print(f"  [!] Yahoo news HTTP {response.status_code} for {ticker}")
+    except requests.Timeout:
+        print(f"  [!] Yahoo news timeout for {ticker}")
     except Exception as e:
         print(f"  [!] Yahoo news fetch failed for {ticker}: {e}")
     return articles
@@ -179,21 +194,28 @@ def fetch_news(session):
                 ("singapore malaysia thailand economy", "markets", 3),
             ]
             for query, category, count in queries:
-                response = requests.get(
-                    "https://newsapi.org/v2/everything",
-                    params={
-                        "q": query, "sortBy": "publishedAt", "pageSize": count,
-                        "language": "en", "apiKey": NEWSAPI_KEY
-                    },
-                    timeout=10
-                )
-                if response.status_code == 200:
-                    for a in response.json().get("articles", []):
-                        title_key = (a.get('title', '') or '')[:60].lower()
-                        if title_key and title_key not in seen_titles:
-                            seen_titles.add(title_key)
-                            a["category"] = category
-                            articles.append(a)
+                try:
+                    response = requests.get(
+                        "https://newsapi.org/v2/everything",
+                        params={
+                            "q": query, "sortBy": "publishedAt", "pageSize": count,
+                            "language": "en", "apiKey": NEWSAPI_KEY
+                        },
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        for a in response.json().get("articles", []):
+                            title_key = (a.get('title', '') or '')[:60].lower()
+                            if title_key and title_key not in seen_titles:
+                                seen_titles.add(title_key)
+                                a["category"] = category
+                                articles.append(a)
+                    else:
+                        print(f"  [!] NewsAPI HTTP {response.status_code} for query: {query}")
+                except requests.Timeout:
+                    print(f"  [!] NewsAPI timeout for query: {query}")
+                except Exception as e:
+                    print(f"  [!] NewsAPI error for query '{query}': {e}")
         else:
             queries = [
                 ("US stock market earnings nasdaq", "markets", 6),
@@ -201,18 +223,28 @@ def fetch_news(session):
                 ("geopolitical trade tariff sanctions", "world", 2),
             ]
             for query, category, count in queries:
-                response = requests.get(
-                    "https://newsapi.org/v2/everything",
-                    params={
-                        "q": query, "sortBy": "publishedAt", "pageSize": count,
-                        "language": "en", "apiKey": NEWSAPI_KEY
-                    },
-                    timeout=10
-                )
-                if response.status_code == 200:
-                    for a in response.json().get("articles", []):
-                        a["category"] = category
-                        articles.append(a)
+                try:
+                    response = requests.get(
+                        "https://newsapi.org/v2/everything",
+                        params={
+                            "q": query, "sortBy": "publishedAt", "pageSize": count,
+                            "language": "en", "apiKey": NEWSAPI_KEY
+                        },
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        for a in response.json().get("articles", []):
+                            title_key = (a.get('title', '') or '')[:60].lower()
+                            if title_key and title_key not in seen_titles:
+                                seen_titles.add(title_key)
+                                a["category"] = category
+                                articles.append(a)
+                    else:
+                        print(f"  [!] NewsAPI HTTP {response.status_code} for query: {query}")
+                except requests.Timeout:
+                    print(f"  [!] NewsAPI timeout for query: {query}")
+                except Exception as e:
+                    print(f"  [!] NewsAPI error for query '{query}': {e}")
         
         print(f"[+] Total: {len(articles)} articles")
     except Exception as e:
@@ -438,8 +470,14 @@ async def main():
     print("="*50)
     print("Finance News Bot - Starting")
     print("="*50)
-    if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID or not NEWSAPI_KEY:
-        print("[!] Missing required environment variables")
+    if not DISCORD_TOKEN:
+        print("[!] Missing DISCORD_TOKEN environment variable")
+        sys.exit(1)
+    if not NEWSAPI_KEY:
+        print("[!] Missing NEWSAPI_KEY environment variable")
+        sys.exit(1)
+    if DISCORD_CHANNEL_ID <= 0:
+        print("[!] Invalid DISCORD_CHANNEL_ID (must be > 0)")
         sys.exit(1)
     await client.start(DISCORD_TOKEN)
 

@@ -35,7 +35,7 @@ Three automatic briefings per weekday:
 |---|---|---|---|
 | **6:00 AM** | US - Pre Market | Overnight + weekend news about your stocks | Mon–Fri |
 | **10:30 AM** | US - Mid Day | Mid-session market updates for your holdings | Mon–Fri |
-| **10:00 PM** | Asia - Market | News for your Asia holdings (before lunch in Asia) | Sun–Thu |
+| **10:00 PM** | Asia - Market | News for your Asia holdings (before lunch in Asia) | Sun–Fri |
 
 Plus manual `/news` command anytime you want a briefing.
 
@@ -169,9 +169,9 @@ Builds beautiful Discord embeds and posts to your channel
 Edit `.github/workflows/news_bot.yml` and modify the cron expressions:
 
 ```yaml
-- cron: '0 14 * * 1-5'   # 6:00 AM PST
-- cron: '30 18 * * 1-5'  # 10:30 AM PST
-- cron: '0 6 * * 0-4'    # 10:00 PM PST
+- cron: '0 14 * * 1-5'   # 6:00 AM PST (Mon–Fri)
+- cron: '30 18 * * 1-5'  # 10:30 AM PST (Mon–Fri)
+- cron: '0 6 * * 0-5'    # 10:00 PM PST (Sun–Fri)
 ```
 
 Times are in UTC. Use [crontab.guru](https://crontab.guru) to convert.
