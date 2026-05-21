@@ -41,18 +41,24 @@ jobs:
           else
             HOUR=$(date -u +%H)
             MINUTE=$(date -u +%M)
+            
+            # Determine which cron triggered based on time window
+            # us_premarket: 14:00-14:59 UTC (Mon-Fri)
             if [ "$HOUR" == "14" ]; then
               SESSION="us_premarket"
-            elif [ "$HOUR" == "18" ] && [ "$MINUTE" -ge "30" ]; then
+            # us_midday: 18:15-19:15 UTC (Mon-Fri) - wider window for delays
+            elif ([ "$HOUR" == "18" ] && [ "$MINUTE" -ge "15" ]) || ([ "$HOUR" == "19" ] && [ "$MINUTE" -lt "15" ]); then
               SESSION="us_midday"
-            elif [ "$HOUR" == "06" ]; then
+            # asia: 05:45-06:45 UTC (Sun-Sat) - wider window for delays
+            elif ([ "$HOUR" == "05" ] && [ "$MINUTE" -ge "45" ]) || ([ "$HOUR" == "06" ] && [ "$MINUTE" -lt "45" ]); then
               SESSION="asia"
             else
               SESSION="us_premarket"
             fi
           fi
           echo "SESSION=$SESSION" >> $GITHUB_ENV
-          echo "Running session: $SESSION"
+          echo "Determined session: $SESSION"
+          echo "Current UTC time: $(date -u '+%Y-%m-%d %H:%M:%S')"
       
       - name: Run bot
         env:
