@@ -20,7 +20,7 @@ import discord
 import requests
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import re
 
 # ============ IMPORT YOUR WATCHLIST CONFIG ============
@@ -282,14 +282,21 @@ def build_embeds(session_type):
         title=f"# {SESSION_NAME}",
         description=(
             f"### {SESSION_DESC}\n"
-            f"📅 **{datetime.now().strftime('%A, %B %d, %Y')}**\n"
-            f"🕐 {datetime.now().strftime('%I:%M %p')}\n"
+    # Get current time in PST (UTC-8)
+    pst_time = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-8)))
+    
+    # HEADER
+    header = discord.Embed(
+        title=f"# {SESSION_NAME}",
+        description=(
+            f"### {SESSION_DESC}\n"
+            f"📅 **{pst_time.strftime('%A, %B %d, %Y')}**\n"
+            f"🕐 {pst_time.strftime('%I:%M %p PST')}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         ),
         color=SESSION_COLOR
     )
     embeds.append(header)
-    
     # TODAY'S HOLDINGS DIRECTION (ALL watchlist stocks)
     print(f"[*] Fetching daily direction for all {len(WATCHLIST_LOCAL)} watchlist stocks...")
     direction_embed = discord.Embed(
