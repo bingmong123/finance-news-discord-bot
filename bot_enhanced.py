@@ -21,6 +21,7 @@ import requests
 import os
 import sys
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import re
 
 # ============ IMPORT YOUR WATCHLIST CONFIG ============
@@ -201,6 +202,7 @@ def fetch_news(session):
                             "q": query, "sortBy": "publishedAt", "pageSize": count,
                             "language": "en", "apiKey": NEWSAPI_KEY
                         },
+                        headers={"User-Agent": "FinanceNewsBot/1.0"},
                         timeout=10
                     )
                     if response.status_code == 200:
@@ -230,6 +232,7 @@ def fetch_news(session):
                             "q": query, "sortBy": "publishedAt", "pageSize": count,
                             "language": "en", "apiKey": NEWSAPI_KEY
                         },
+                        headers={"User-Agent": "FinanceNewsBot/1.0"},
                         timeout=10
                     )
                     if response.status_code == 200:
@@ -278,7 +281,7 @@ def build_embeds(session_type):
     embeds = []
     
     # Get current time in PST (UTC-8)
-    pst_time = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-8)))
+    pst_time = datetime.now(timezone.utc).astimezone(ZoneInfo("America/Los_Angeles"))
     
     # HEADER
     header = discord.Embed(

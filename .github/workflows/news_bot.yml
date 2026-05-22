@@ -2,9 +2,9 @@ name: Finance News Bot
 
 on:
   schedule:
-    - cron: '0 14 * * 1-5'
-    - cron: '30 18 * * 1-5'
-    - cron: '0 6 * * 0-5'
+    - cron: '0 14 * * 1-5'    # US Pre-Market (6:00 AM PST)
+    - cron: '30 18 * * 1-5'   # US Mid-Day (10:30 AM PST)
+    - cron: '0 6 * * 0-5'     # Asia Market (10:00 PM PST)
   
   workflow_dispatch:
     inputs:
@@ -36,27 +36,25 @@ jobs:
       
       - name: Determine session
         run: |
+          # Manual trigger: use the input session directly
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             SESSION="${{ github.event.inputs.session }}"
+          # Scheduled trigger: map cron string directly to session
+          # This is DETERMINISTIC regardless of GitHub Actions queue delays
+          elif [ "${{ github.event.schedule }}" == "0 14 * * 1-5" ]; then
+            SESSION="us_premarket"
+          elif [ "${{ github.event.schedule }}" == "30 18 * * 1-5" ]; then
+            SESSION="us_midday"
+          elif [ "${{ github.event.schedule }}" == "0 6 * * 0-5" ]; then
+            SESSION="asia"
           else
-            HOUR=$(date -u +%H)
-            MINUTE=$(date -u +%M)
-            
-            # Determine which cron triggered based on time window
-            # us_premarket: 14:00-14:59 UTC (Mon-Fri)
-            if [ "$HOUR" == "14" ]; then
-              SESSION="us_premarket"
-            # us_midday: 18:15-19:15 UTC (Mon-Fri) - wider window for delays
-            elif ([ "$HOUR" == "18" ] && [ "$MINUTE" -ge "15" ]) || ([ "$HOUR" == "19" ] && [ "$MINUTE" -lt "15" ]); then
-              SESSION="us_midday"
-            # asia: 05:45-06:45 UTC (Sun-Sat) - wider window for delays
-            elif ([ "$HOUR" == "05" ] && [ "$MINUTE" -ge "45" ]) || ([ "$HOUR" == "06" ] && [ "$MINUTE" -lt "45" ]); then
-              SESSION="asia"
-            else
-              SESSION="us_premarket"
-            fi
+            # Fallback (should never happen)
+            SESSION="us_premarket"
           fi
+          
           echo "SESSION=$SESSION" >> $GITHUB_ENV
+          echo "Event name: ${{ github.event_name }}"
+          echo "Cron schedule: ${{ github.event.schedule }}"
           echo "Determined session: $SESSION"
           echo "Current UTC time: $(date -u '+%Y-%m-%d %H:%M:%S')"
       
