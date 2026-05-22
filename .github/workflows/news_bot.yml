@@ -1,11 +1,26 @@
 name: Finance News Bot
 
+# ============================================================
+# Schedule is in UTC. Currently set for PDT (UTC-7, Mar–Nov).
+# When DST ends in November, add 1 hour to each UTC time.
+#   Pre-market:  '0 13' → '0 14'
+#   Midday:      '30 17' → '30 18'
+#   Asia:        '0 5'  → '0 6'
+# ============================================================
+
 on:
   schedule:
-    - cron: '0 14 * * 1-5'    # US Pre-Market (6:00 AM PST)
-    - cron: '30 18 * * 1-5'   # US Mid-Day (10:30 AM PST)
-    - cron: '0 6 * * 0-5'     # Asia Market (10:00 PM PST)
-  
+    # 🇺🇸 US Pre-market: 6:00 AM PT = 13:00 UTC (Mon-Fri)
+    - cron: '0 13 * * 1-5'
+
+    # 📊 US Midday: 10:30 AM PT = 17:30 UTC (Mon-Fri)
+    - cron: '30 17 * * 1-5'
+
+    # 🌏 Asia Pre-market: 10:00 PM PT = 05:00 UTC next day
+    # Covers Sun–Thu PT nights → Mon–Fri UTC (Mon–Fri Asian trading prep)
+    - cron: '0 5 * * 1-5'
+
+  # Manual trigger from GitHub UI (great for testing)
   workflow_dispatch:
     inputs:
       session:
@@ -21,47 +36,41 @@ on:
 jobs:
   send-news:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-      
+        uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
-        run: pip install discord.py requests
-      
-      - name: Determine session
         run: |
-          # Manual trigger: use the input session directly
+          pip install discord.py requests
+
+      - name: Determine session
+        id: session
+        run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            SESSION="${{ github.event.inputs.session }}"
-          # Scheduled trigger: map cron string directly to session
-          # This is DETERMINISTIC regardless of GitHub Actions queue delays
-          elif [ "${{ github.event.schedule }}" == "0 14 * * 1-5" ]; then
-            SESSION="us_premarket"
-          elif [ "${{ github.event.schedule }}" == "30 18 * * 1-5" ]; then
-            SESSION="us_midday"
-          elif [ "${{ github.event.schedule }}" == "0 6 * * 0-5" ]; then
-            SESSION="asia"
+            # Manual trigger — use the dropdown selection
+            echo "session=${{ github.event.inputs.session }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 13 * * 1-5" ]; then
+            echo "session=us_premarket" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "30 17 * * 1-5" ]; then
+            echo "session=us_midday" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 5 * * 1-5" ]; then
+            echo "session=asia" >> $GITHUB_OUTPUT
           else
-            # Fallback (should never happen)
-            SESSION="us_premarket"
+            # Fallback (should never hit this)
+            echo "session=us_premarket" >> $GITHUB_OUTPUT
           fi
-          
-          echo "SESSION=$SESSION" >> $GITHUB_ENV
-          echo "Event name: ${{ github.event_name }}"
-          echo "Cron schedule: ${{ github.event.schedule }}"
-          echo "Determined session: $SESSION"
-          echo "Current UTC time: $(date -u '+%Y-%m-%d %H:%M:%S')"
-      
+
       - name: Run bot
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          SESSION: ${{ env.SESSION }}
+          SESSION: ${{ steps.session.outputs.session }}
         run: python bot_enhanced.py
