@@ -277,11 +277,6 @@ def build_embeds(session_type):
     articles = fetch_news(session_type)
     embeds = []
     
-    # HEADER
-    header = discord.Embed(
-        title=f"# {SESSION_NAME}",
-        description=(
-            f"### {SESSION_DESC}\n"
     # Get current time in PST (UTC-8)
     pst_time = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-8)))
     
