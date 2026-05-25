@@ -70,18 +70,23 @@ BEARISH_KEYWORDS = [
 ]
 
 # ============ FREE RSS SOURCES ============
-# These require NO API key and are near real-time
+# These require NO API key and are near real-time.
+# Bloomberg Asia RSS is excluded — unreliable, frequently 403s.
+# Reuters is equally authoritative and always open.
 RSS_US = [
-    ("https://feeds.bloomberg.com/markets/news.rss",          "markets", 5),
-    ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets", 5),
-    ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets", 4),
-    ("https://finance.yahoo.com/rss/",                        "markets", 3),
+    ("https://feeds.bloomberg.com/markets/news.rss",          "markets", 5),  # Bloomberg US (more stable than Asia)
+    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 4),  # Reuters global business
+    ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets", 4),  # CNBC Markets
+    ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets", 3),  # MarketWatch
+    ("https://finance.yahoo.com/rss/",                        "markets", 3),  # Yahoo Finance
 ]
 RSS_ASIA = [
-    ("https://www.cnbc.com/id/100727362/device/rss/rss.html", "markets", 5),  # CNBC Asia
-    ("https://feeds.bloomberg.com/asia/news.rss",             "markets", 5),  # Bloomberg Asia
-    ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets", 3),
-    ("https://finance.yahoo.com/rss/",                        "markets", 3),
+    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 5),  # Reuters — best Asia coverage
+    ("https://feeds.reuters.com/reuters/companyNews",          "markets", 4),  # Reuters company-level
+    ("https://www.cnbc.com/id/100727362/device/rss/rss.html", "markets", 4),  # CNBC Asia Pacific
+    ("https://asia.nikkei.com/rss/feed/nar",                  "markets", 3),  # Nikkei Asia (Japan + regional)
+    ("https://www.straitstimes.com/news/business/rss.xml",    "markets", 3),  # Straits Times (Singapore/SEA)
+    ("https://finance.yahoo.com/rss/",                        "markets", 2),  # Yahoo Finance fallback
 ]
 
 
