@@ -38,9 +38,8 @@ Three automatic briefings per weekday, delivered to your Discord channel:
 | **GitHub Actions** | Free for public repos — runs the bot |
 | **Google Cloud Scheduler** | 3 jobs free forever — fires the trigger |
 | **Discord Bot** | Free forever |
-| **NewsAPI** | Free tier: 100 req/day (bot uses ~5–10) |
 | **Yahoo Finance** | Free public API, no key needed |
-| **RSS Feeds** (Bloomberg, Reuters, CNBC, SCMP, etc.) | Completely free, no key needed |
+| **RSS Feeds** (Reuters, Bloomberg, CNBC, Fed Reserve, SCMP, Nikkei, Al Jazeera, etc.) | Completely free, no key, real-time |
 
 **No credit card required for anything except Google Cloud** (billing must be enabled but you will not be charged within the free tier).
 
@@ -90,6 +89,7 @@ All free, no API keys required for RSS:
 - GitHub account
 - Google Cloud account (free — [console.cloud.google.com](https://console.cloud.google.com))
 - Discord server
+- No NewsAPI key needed — all news comes from free RSS feeds
 
 ---
 
@@ -109,20 +109,13 @@ All free, no API keys required for RSS:
 
 ---
 
-### Step 2 — Get a Free NewsAPI Key
-
-1. Sign up at [newsapi.org](https://newsapi.org) (free)
-2. Copy your API key from the dashboard
-
----
-
-### Step 3 — Fork This Repo
+### Step 2 — Fork This Repo
 
 Click **Fork** at the top right of this page.
 
 ---
 
-### Step 4 — Add GitHub Secrets
+### Step 3 — Add GitHub Secrets
 
 In your forked repo: **Settings → Secrets and variables → Actions → New repository secret**
 
@@ -130,11 +123,10 @@ In your forked repo: **Settings → Secrets and variables → Actions → New re
 |-------------|-------|
 | `DISCORD_TOKEN` | Bot token from Step 1 |
 | `DISCORD_CHANNEL_ID` | Channel ID from Step 1 |
-| `NEWSAPI_KEY` | NewsAPI key from Step 2 |
 
 ---
 
-### Step 5 — Customize Your Watchlist
+### Step 4 — Customize Your Watchlist
 
 Edit **`config.py`** — this is the only file you need to touch.
 
@@ -202,7 +194,7 @@ NAME_TO_TICKER = {
 
 ---
 
-### Step 6 — Set Up Google Cloud Scheduler
+### Step 5 — Set Up Google Cloud Scheduler
 
 This is what fires your briefings on time. Takes about 5 minutes.
 
@@ -265,7 +257,7 @@ You should see 3 jobs listed. **DST is handled automatically** — no manual tim
 
 ---
 
-### Step 7 — Test It
+### Step 6 — Test It
 
 **Test via GitHub Actions (instant):**
 1. Go to your repo → **Actions** tab → **Finance News Bot**

@@ -41,7 +41,6 @@ try:
 except ValueError as e:
     print(f"[!] Invalid DISCORD_CHANNEL_ID: {e}")
     DISCORD_CHANNEL_ID = 0
-NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 
 # Which session to run: 'us_premarket', 'us_midday', or 'asia'
 SESSION = os.getenv("SESSION", "us_premarket")
@@ -78,32 +77,36 @@ BEARISH_KEYWORDS = [
     'slump', 'underperform', 'warning', 'risk', 'fear'
 ]
 
-# ============ FREE RSS SOURCES ============
-# No API key needed. Bloomberg Asia excluded — frequently 403s.
+# ============ FREE RSS SOURCES — No API key needed, all real-time ============
 RSS_US = [
-    ("https://feeds.bloomberg.com/markets/news.rss",          "markets", 5),  # Bloomberg US
-    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 4),  # Reuters Business
-    ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets", 4),  # CNBC Markets
-    ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets", 3),  # MarketWatch
-    ("https://finance.yahoo.com/rss/",                        "markets", 3),  # Yahoo Finance
+    # ── Markets ──────────────────────────────────────────────────────────
+    ("https://feeds.bloomberg.com/markets/news.rss",           "markets",      5),  # Bloomberg US
+    ("https://feeds.reuters.com/reuters/businessNews",          "markets",      4),  # Reuters Business
+    ("https://www.cnbc.com/id/100003114/device/rss/rss.html",  "markets",      4),  # CNBC Markets
+    ("https://feeds.marketwatch.com/marketwatch/topstories/",  "markets",      3),  # MarketWatch
+    ("https://finance.yahoo.com/rss/",                         "markets",      3),  # Yahoo Finance
+    # ── Macro (Fed + economic policy) ────────────────────────────────────
+    ("https://www.federalreserve.gov/feeds/press_all.xml",     "macro",        5),  # Federal Reserve — official releases
+    ("https://feeds.reuters.com/reuters/businessNews",          "macro",        3),  # Reuters economics
+    # ── Geopolitical ─────────────────────────────────────────────────────
+    ("https://feeds.reuters.com/reuters/worldNews",             "geopolitical", 4),  # Reuters World News
+    ("https://feeds.reuters.com/Reuters/PoliticsNews",          "geopolitical", 3),  # Reuters Politics
 ]
 RSS_ASIA = [
-    # Broad Asia
-    ("https://feeds.reuters.com/reuters/businessNews",                  "markets", 5),  # Reuters — best Asia coverage
-    ("https://feeds.reuters.com/reuters/companyNews",                   "markets", 4),  # Reuters company-level
-    ("https://www.cnbc.com/id/100727362/device/rss/rss.html",          "markets", 4),  # CNBC Asia Pacific
-    # Japan + Regional
-    ("https://asia.nikkei.com/rss/feed/nar",                           "markets", 3),  # Nikkei Asia
-    # Hong Kong + China
-    ("https://www.scmp.com/rss/91/feed",                               "markets", 3),  # South China Morning Post
-    # Malaysia + Southeast Asia
-    ("https://www.thestar.com.my/rss/business/business-news",          "markets", 3),  # The Star Malaysia
-    ("https://www.straitstimes.com/news/business/rss.xml",             "markets", 3),  # Straits Times (Singapore/SEA)
-    # Middle East
-    ("https://www.arabnews.com/taxonomy/term/317/rss.xml",             "geopolitical", 3),  # Arab News Business
-    ("https://www.zawya.com/rss/markets/",                             "markets", 3),  # Zawya (GCC markets)
-    # Fallback
-    ("https://finance.yahoo.com/rss/",                                 "markets", 2),  # Yahoo Finance
+    # ── Markets ──────────────────────────────────────────────────────────
+    ("https://feeds.reuters.com/reuters/businessNews",                 "markets",      5),  # Reuters — best Asia coverage
+    ("https://feeds.reuters.com/reuters/companyNews",                  "markets",      4),  # Reuters company-level
+    ("https://www.cnbc.com/id/100727362/device/rss/rss.html",         "markets",      4),  # CNBC Asia Pacific
+    ("https://asia.nikkei.com/rss/feed/nar",                          "markets",      3),  # Nikkei Asia
+    ("https://www.scmp.com/rss/91/feed",                              "markets",      3),  # South China Morning Post
+    ("https://www.thestar.com.my/rss/business/business-news",         "markets",      3),  # The Star Malaysia
+    ("https://www.straitstimes.com/news/business/rss.xml",            "markets",      3),  # Straits Times
+    ("https://www.zawya.com/rss/markets/",                            "markets",      3),  # Zawya (GCC markets)
+    ("https://finance.yahoo.com/rss/",                                "markets",      2),  # Yahoo Finance
+    # ── Geopolitical ─────────────────────────────────────────────────────
+    ("https://feeds.reuters.com/reuters/worldNews",                   "geopolitical", 4),  # Reuters World News
+    ("https://www.aljazeera.com/xml/rss/all.xml",                     "geopolitical", 4),  # Al Jazeera (Asia + ME focus)
+    ("https://www.arabnews.com/taxonomy/term/317/rss.xml",            "geopolitical", 3),  # Arab News (Middle East)
 ]
 
 
@@ -149,48 +152,6 @@ def fetch_rss(url, category, max_items=5):
         return []
 
 
-# ============ NEWSAPI FETCH ============
-def fetch_newsapi(session):
-    """Fetch from NewsAPI for macro & geopolitical context (supplement to RSS)."""
-    articles = []
-    if not NEWSAPI_KEY:
-        print("  [!] No NEWSAPI_KEY — skipping NewsAPI")
-        return articles
-    try:
-        if session == "asia":
-            queries = [
-                ("asia china japan stock market economy", "macro",        3),
-                ("middle east gulf oil economy",          "geopolitical", 2),
-                ("asia trade geopolitical sanctions",     "geopolitical", 2),
-            ]
-        else:
-            queries = [
-                ("federal reserve inflation rate policy",  "macro",        3),
-                ("geopolitical trade tariff sanctions",    "geopolitical", 3),
-            ]
-        for query, category, count in queries:
-            resp = requests.get(
-                "https://newsapi.org/v2/everything",
-                params={
-                    "q":        query,
-                    "sortBy":   "publishedAt",
-                    "pageSize": count,
-                    "language": "en",
-                    "apiKey":   NEWSAPI_KEY,
-                },
-                headers={"User-Agent": "FinanceNewsBot/1.0"},
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                for a in resp.json().get("articles", []):
-                    a["category"] = category
-                    articles.append(a)
-        print(f"  [+] NewsAPI: {len(articles)} articles")
-    except Exception as e:
-        print(f"  [!] NewsAPI error: {e}")
-    return articles
-
-
 # ============ PER-STOCK YAHOO FINANCE RSS ============
 def fetch_yahoo_stock_rss(ticker):
     """Fetch stock-specific news from Yahoo Finance RSS (free, no key)."""
@@ -201,12 +162,11 @@ def fetch_yahoo_stock_rss(ticker):
 
 # ============ MAIN NEWS FETCH ============
 def fetch_news(session):
-    """Fetch all news: RSS feeds (primary) + NewsAPI (secondary). Deduplicates."""
+    """Fetch all news from RSS feeds — real-time, no API key needed."""
     print(f"[*] Fetching news — session: {session}")
     articles = []
     seen_titles = set()
 
-    # 1. RSS feeds — free, no API key, near real-time
     rss_sources = RSS_ASIA if session == "asia" else RSS_US
     for url, category, max_items in rss_sources:
         for a in fetch_rss(url, category, max_items):
@@ -214,13 +174,6 @@ def fetch_news(session):
             if key not in seen_titles:
                 seen_titles.add(key)
                 articles.append(a)
-
-    # 2. NewsAPI — macro & geopolitical context
-    for a in fetch_newsapi(session):
-        key = (a.get("title") or "").lower()[:80]
-        if key not in seen_titles:
-            seen_titles.add(key)
-            articles.append(a)
 
     print(f"[+] Total unique articles: {len(articles)}")
     return articles
@@ -484,7 +437,7 @@ def build_embeds(articles):
         description=(
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "✅ **Brief complete** — Have a great trading day!\n"
-            "_Sources: Reuters · Bloomberg · CNBC · SCMP · Nikkei · Straits Times · The Star · Arab News · Yahoo Finance_"
+            "_Sources: Reuters · Bloomberg · CNBC · Fed Reserve · SCMP · Nikkei · Straits Times · The Star · Al Jazeera · Arab News · Yahoo Finance_"
         ),
         color=0x888780,
     )
