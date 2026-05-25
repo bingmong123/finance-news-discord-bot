@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Discord Finance News Bot - Enhanced Edition
-- Multi-source news: Bloomberg, CNBC, MarketWatch, Yahoo Finance RSS (free, no key)
-  + NewsAPI for macro/geopolitical context (kept as supplement)
+- Portfolio prices ALWAYS shown (not just when in the news)
+- Parallel price fetching (fast even for 34 stocks)
+- Multi-source news: Reuters, Bloomberg, CNBC, SCMP, Nikkei, Straits Times,
+  The Star (Malaysia), Arab News (Middle East), Yahoo Finance RSS — all free
 - Company name matching (Nvidia → NVDA, Ping An → 601318)
-- Correct Asia stock prices via Yahoo Finance format mapping (ASIA_YAHOO_FORMAT)
-- PST/PDT timezone display in Discord header
-- Watchlists and name mappings imported from config.py (single source of truth)
+- Asia stock prices via ASIA_YAHOO_FORMAT (601318 → 601318.SS etc.)
+- PST/PDT timezone display via ZoneInfo
+- Watchlists imported from config.py (single source of truth)
 """
 
 import discord
@@ -16,6 +18,7 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 
 # ============ IMPORT WATCHLISTS FROM config.py ============
@@ -40,7 +43,7 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 # Which session to run: 'us_premarket', 'us_midday', or 'asia'
 SESSION = os.getenv("SESSION", "us_premarket")
 
-# Active watchlist & display settings based on session
+# Active watchlist & display settings
 if SESSION == "asia":
     WATCHLIST = ASIA_WATCHLIST
     SESSION_NAME = "🌏 ASIA MARKETS"
@@ -70,23 +73,31 @@ BEARISH_KEYWORDS = [
 ]
 
 # ============ FREE RSS SOURCES ============
-# These require NO API key and are near real-time.
-# Bloomberg Asia RSS is excluded — unreliable, frequently 403s.
-# Reuters is equally authoritative and always open.
+# No API key needed. Bloomberg Asia excluded — frequently 403s.
 RSS_US = [
-    ("https://feeds.bloomberg.com/markets/news.rss",          "markets", 5),  # Bloomberg US (more stable than Asia)
-    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 4),  # Reuters global business
+    ("https://feeds.bloomberg.com/markets/news.rss",          "markets", 5),  # Bloomberg US
+    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 4),  # Reuters Business
     ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets", 4),  # CNBC Markets
     ("https://feeds.marketwatch.com/marketwatch/topstories/", "markets", 3),  # MarketWatch
     ("https://finance.yahoo.com/rss/",                        "markets", 3),  # Yahoo Finance
 ]
 RSS_ASIA = [
-    ("https://feeds.reuters.com/reuters/businessNews",         "markets", 5),  # Reuters — best Asia coverage
-    ("https://feeds.reuters.com/reuters/companyNews",          "markets", 4),  # Reuters company-level
-    ("https://www.cnbc.com/id/100727362/device/rss/rss.html", "markets", 4),  # CNBC Asia Pacific
-    ("https://asia.nikkei.com/rss/feed/nar",                  "markets", 3),  # Nikkei Asia (Japan + regional)
-    ("https://www.straitstimes.com/news/business/rss.xml",    "markets", 3),  # Straits Times (Singapore/SEA)
-    ("https://finance.yahoo.com/rss/",                        "markets", 2),  # Yahoo Finance fallback
+    # Broad Asia
+    ("https://feeds.reuters.com/reuters/businessNews",                  "markets", 5),  # Reuters — best Asia coverage
+    ("https://feeds.reuters.com/reuters/companyNews",                   "markets", 4),  # Reuters company-level
+    ("https://www.cnbc.com/id/100727362/device/rss/rss.html",          "markets", 4),  # CNBC Asia Pacific
+    # Japan + Regional
+    ("https://asia.nikkei.com/rss/feed/nar",                           "markets", 3),  # Nikkei Asia
+    # Hong Kong + China
+    ("https://www.scmp.com/rss/91/feed",                               "markets", 3),  # South China Morning Post
+    # Malaysia + Southeast Asia
+    ("https://www.thestar.com.my/rss/business/business-news",          "markets", 3),  # The Star Malaysia
+    ("https://www.straitstimes.com/news/business/rss.xml",             "markets", 3),  # Straits Times (Singapore/SEA)
+    # Middle East
+    ("https://www.arabnews.com/taxonomy/term/317/rss.xml",             "geopolitical", 3),  # Arab News Business
+    ("https://www.zawya.com/rss/markets/",                             "markets", 3),  # Zawya (GCC markets)
+    # Fallback
+    ("https://finance.yahoo.com/rss/",                                 "markets", 2),  # Yahoo Finance
 ]
 
 
@@ -105,7 +116,7 @@ def fetch_rss(url, category, max_items=5):
             return []
 
         root = ET.fromstring(resp.content)
-        items = root.findall(".//item")           # RSS 2.0
+        items = root.findall(".//item")            # RSS 2.0
         if not items:
             ns = {"a": "http://www.w3.org/2005/Atom"}
             items = root.findall(".//a:entry", ns)  # Atom fallback
@@ -143,7 +154,8 @@ def fetch_newsapi(session):
         if session == "asia":
             queries = [
                 ("asia china japan stock market economy", "macro",        3),
-                ("asia trade geopolitical sanctions",     "geopolitical", 3),
+                ("middle east gulf oil economy",          "geopolitical", 2),
+                ("asia trade geopolitical sanctions",     "geopolitical", 2),
             ]
         else:
             queries = [
@@ -210,7 +222,7 @@ def fetch_news(session):
 
 # ============ ENRICH WITH PER-STOCK NEWS ============
 def enrich_with_stock_news(articles):
-    """For each stock already mentioned in the news, fetch its Yahoo Finance RSS."""
+    """For each stock mentioned in the news, fetch its Yahoo Finance RSS."""
     mentioned = set()
     for a in articles:
         text = f"{a.get('title', '')} {a.get('description', '') or ''}"
@@ -261,10 +273,24 @@ def get_stock_price(ticker):
     return None
 
 
+def fetch_all_prices(tickers):
+    """Fetch prices for all tickers in parallel (much faster than sequential)."""
+    results = {}
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_ticker = {executor.submit(get_stock_price, t): t for t in tickers}
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                results[ticker] = future.result()
+            except Exception:
+                results[ticker] = None
+    return results
+
+
 def format_price(price_data, ticker):
     """Format price with emoji and % change label."""
     if not price_data:
-        return f"**{ticker}**"
+        return f"**{ticker}** —"
     price = price_data["price"]
     pct   = price_data["change_pct"]
     curr  = price_data["currency"]
@@ -325,7 +351,7 @@ def find_stock_mentions(text):
 
 # ============ BUILD DISCORD EMBEDS ============
 def build_embeds(articles):
-    """Build all Discord embeds: header, holdings, markets, world events, footer."""
+    """Build all Discord embeds: header, portfolio, news callouts, markets, world events, footer."""
     embeds = []
 
     # Current time in PST/PDT
@@ -345,7 +371,34 @@ def build_embeds(articles):
     )
     embeds.append(header)
 
-    # ── Map each article to any watchlist stocks it mentions ─────────────
+    # ── Fetch ALL portfolio prices in parallel ───────────────────────────
+    print(f"[*] Fetching prices for all {len(WATCHLIST)} stocks in parallel…")
+    price_cache = fetch_all_prices(WATCHLIST)
+
+    # ── PORTFOLIO PRICES (always shown, every brief) ─────────────────────
+    # Split into batches of 24 (Discord max is 25 fields per embed)
+    BATCH_SIZE = 24
+    total_batches = max(1, (len(WATCHLIST) + BATCH_SIZE - 1) // BATCH_SIZE)
+    for batch_idx in range(total_batches):
+        batch = WATCHLIST[batch_idx * BATCH_SIZE:(batch_idx + 1) * BATCH_SIZE]
+        title = "💼 YOUR PORTFOLIO"
+        if total_batches > 1:
+            title += f" ({batch_idx + 1}/{total_batches})"
+
+        portfolio_embed = discord.Embed(
+            title=title,
+            description="*Live prices for your watchlist*" if batch_idx == 0 else None,
+            color=0x534AB7,
+        )
+        for ticker in batch:
+            portfolio_embed.add_field(
+                name="​",  # zero-width space
+                value=format_price(price_cache.get(ticker), ticker),
+                inline=True,  # 3 per row — compact
+            )
+        embeds.append(portfolio_embed)
+
+    # ── Map articles → mentioned stocks ──────────────────────────────────
     all_mentioned    = set()
     article_stock_map = {}
     for article in articles:
@@ -355,28 +408,28 @@ def build_embeds(articles):
             article_stock_map[id(article)] = stocks
             all_mentioned.update(stocks)
 
-    # ── YOUR HOLDINGS IN THE NEWS ────────────────────────────────────────
+    # ── YOUR HOLDINGS IN THE NEWS (only when actually mentioned) ─────────
     if all_mentioned:
-        holdings = discord.Embed(
+        news_callout = discord.Embed(
             title="🎯 YOUR HOLDINGS IN THE NEWS",
-            description="*Stocks from your watchlist with current prices*",
-            color=0x534AB7,
+            description="*These stocks are making headlines today*",
+            color=0xF4A500,
         )
-        print(f"[*] Fetching prices for {len(all_mentioned)} stocks…")
         for ticker in sorted(all_mentioned):
-            price_data = get_stock_price(ticker)
-            price_str  = format_price(price_data, ticker)
             related = [
                 a["title"]
                 for a in articles
                 if ticker in article_stock_map.get(id(a), [])
             ]
-            value = price_str
             if related:
-                snippet = related[0][:80] + ("..." if len(related[0]) > 80 else "")
-                value += f"\n💬 _{snippet}_"
-            holdings.add_field(name="​", value=value, inline=False)
-        embeds.append(holdings)
+                snippet = related[0][:90] + ("..." if len(related[0]) > 90 else "")
+                news_callout.add_field(
+                    name=f"**{ticker}**  {format_price(price_cache.get(ticker), ticker)}",
+                    value=f"💬 _{snippet}_",
+                    inline=False,
+                )
+        if news_callout.fields:
+            embeds.append(news_callout)
 
     # ── MARKETS & ECONOMY ────────────────────────────────────────────────
     market_articles = [a for a in articles if a.get("category") in ("markets", "macro")]
@@ -433,7 +486,7 @@ def build_embeds(articles):
         description=(
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             "✅ **Brief complete** — Have a great trading day!\n"
-            "_Sources: Bloomberg · CNBC · MarketWatch · Yahoo Finance · NewsAPI_"
+            "_Sources: Reuters · Bloomberg · CNBC · SCMP · Nikkei · Straits Times · The Star · Arab News · Yahoo Finance_"
         ),
         color=0x888780,
     )
@@ -457,8 +510,8 @@ async def main():
     # Enrich: add per-stock Yahoo Finance RSS for any mentioned stocks
     articles = enrich_with_stock_news(articles)
 
-    if not articles:
-        print("[!] No articles from any source — aborting")
+    if not articles and not WATCHLIST:
+        print("[!] No articles and empty watchlist — aborting")
         sys.exit(0)
 
     embeds = build_embeds(articles)
