@@ -1,10 +1,12 @@
 # 📰 Finance News Discord Bot
 
-> A free, automated Discord bot that delivers personalized market briefings — your full portfolio prices grouped by sector, live news filtered to your holdings, and sentiment analysis. Fires on time every time via Google Cloud Scheduler.
+> Free automated Discord bot delivering daily market briefings — full portfolio prices grouped by sector, news filtered to your holdings, Fed announcements, and geopolitical coverage. Powered by Reuters, Bloomberg, CNBC, Federal Reserve RSS and more. Fires on time via Google Cloud Scheduler.
 
 [![Python](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.com/)
 [![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![GCP Scheduler](https://img.shields.io/badge/trigger-Google%20Cloud%20Scheduler-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/scheduler)
+[![No API Keys](https://img.shields.io/badge/news-RSS%20only%2C%20no%20API%20keys-brightgreen)](https://github.com/bingmong123/finance-news-discord-bot)
 [![Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)](https://github.com/features/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
