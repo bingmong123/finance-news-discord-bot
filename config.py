@@ -18,10 +18,26 @@ on the next scheduled run (or manual trigger).
 # Examples: AAPL, GOOGL, TSLA, NVDA, SPY, QQQ, VOO
 
 US_WATCHLIST = [
-    'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
-    'USD', 'SCHY', 'SCHF', 'ARCC', 'PEP', 'XYLD', 'SCHR',
-    'EPD', 'YMAX', 'ET', 'ZM', 'TDUP', 'GOF', 'SPOT', 'NIO', 'SLVM',
-    'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ'
+    # Growth / Tech
+    'NVDA', 'PLTR', 'MSFT', 'MSFU', 'CSCO', 'NFLX', 'SPOT', 'NIO', 'ZM',
+    # ETFs — Broad Market
+    'SPY', 'SCHD', 'SCHG', 'SCHY', 'SCHF', 'VOOG',
+    # ETFs — Income / Covered Call
+    'JEPQ', 'YMAX', 'QYLD', 'XDTE',
+    # REITs
+    'O', 'MPT', 'IRM',
+    # Income / Dividend Stocks
+    'AGNC', 'ARCC', 'MAIN', 'GOF', 'PDI',
+    # Energy / Infrastructure
+    'EPD', 'ET',
+    # Consumer / Retail
+    'PEP', 'WMT', 'CCL',
+    # Telecom
+    'T', 'NDAQ',
+    # Tobacco
+    'MO',
+    # Small / Specialty
+    'TDUP', 'SLVM',
 ]
 
 
@@ -161,6 +177,18 @@ NAME_TO_TICKER = {
     'sylvamo': 'SLVM',
     'main street capital': 'MAIN',
     'ares capital': 'ARCC',
+    # Newly added
+    'carnival': 'CCL',
+    'carnival corporation': 'CCL',
+    'carnival cruise': 'CCL',
+    'iron mountain': 'IRM',
+    'medical properties': 'MPT',
+    'medical properties trust': 'MPT',
+    'realty income': 'O',
+    'at&t': 'T',
+    'att': 'T',
+    'walmart': 'WMT',
+    'pimco dynamic': 'PDI',
     
     # ETF / Index references
     's&p 500': 'SPY',
