@@ -19,7 +19,7 @@ on the next scheduled run (or manual trigger).
 
 US_WATCHLIST = [
     'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
-    'USD', 'SCHY', 'SCHF', 'ARCC', 'GYLD', 'PEP', 'XYLD', 'SCHR',
+    'USD', 'SCHY', 'SCHF', 'ARCC', 'PEP', 'XYLD', 'SCHR',
     'EPD', 'YMAX', 'ET', 'ZM', 'TDUP', 'GOF', 'SPOT', 'NIO', 'SLVM',
     'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ'
 ]
