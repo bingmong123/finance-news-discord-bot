@@ -19,9 +19,9 @@ on the next scheduled run (or manual trigger).
 
 US_WATCHLIST = [
     'NVDA', 'SPY', 'SCHD', 'PLTR', 'MSFT', 'MSFU', 'SCHG', 'CSCO', 'NFLX',
-    'USD', 'SCHY', 'SCHF', 'ARCC', 'GYLD', 'PEP', 'XYLD', 'SCHR', 'XMT',
+    'USD', 'SCHY', 'SCHF', 'ARCC', 'GYLD', 'PEP', 'XYLD', 'SCHR',
     'EPD', 'YMAX', 'ET', 'ZM', 'TDUP', 'GOF', 'SPOT', 'NIO', 'SLVM',
-    'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ', 'GIS'
+    'MO', 'MAIN', 'JEPQ', 'VOOG', 'AGNC', 'NDAQ'
 ]
 
 
@@ -155,7 +155,6 @@ NAME_TO_TICKER = {
     'zoom video': 'ZM',
     'altria': 'MO',
     'nasdaq inc': 'NDAQ',
-    'general mills': 'GIS',
     'enterprise products': 'EPD',
     'energy transfer': 'ET',
     'thredup': 'TDUP',
