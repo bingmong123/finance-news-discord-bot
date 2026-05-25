@@ -1,294 +1,343 @@
 # 📰 Finance News Discord Bot
 
-> A free Discord bot that delivers **your stock portfolio in the news** — automatically filters news to only show articles mentioning stocks you own, with live prices and sentiment analysis.
+> A free, automated Discord bot that delivers personalized market briefings — your full portfolio prices grouped by sector, live news filtered to your holdings, and sentiment analysis. Fires on time every time via Google Cloud Scheduler.
 
-[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![Python](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)](https://github.com/features/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## ✨ What It Does
 
-**No more news noise.** This bot scans finance news and shows you **only articles that mention stocks in your portfolio**. Get a curated, personalized digest delivered to Discord automatically.
+Three automatic briefings per weekday, delivered to your Discord channel:
 
-### 🎯 Key Features
+| Time (PT) | Briefing | Coverage |
+|-----------|----------|----------|
+| **6:00 AM** | 🇺🇸 US Pre-Market | Overnight + weekend news, full portfolio prices |
+| **10:30 AM** | 📊 US Midday | Mid-session check-in, portfolio update |
+| **10:00 PM** | 🌏 Asia Markets | Asia session prep (Sun–Thu nights) |
 
-- **🎯 Strict Stock Filtering** — Only shows news mentioning YOUR watchlist; everything else is filtered out
-- **📈 Live Stock Prices** — Fetches real-time/15-min delayed prices from Yahoo Finance for every stock mentioned
-- **🐂 Sentiment Analysis** — Tags articles as 🐂 Bullish, 🐻 Bearish, or ⚖️ Neutral based on language
-- **🚀 Price Movement Emojis** — Visual cues: 🚀 (+2%), 🟢 (up), 🔴 (down), 📉 (-2%)
-- **🌍 World Events Unfiltered** — Geopolitics, Fed policy, and government news always included (affects all holdings)
-- **🤖 Smart Company Name Matching** — Recognizes "Nvidia" as NVDA, "S&P 500" as SPY, international stocks by name
-- **💬 Slash Commands** — Manually trigger any briefing anytime with `/news`
-- **🎨 Rich Discord Embeds** — Color-coded sections with clear layout
+### Each briefing includes:
 
----
-
-## 📅 Schedule
-
-Three automatic briefings per weekday:
-
-| Time (PST) | Name | What's Included | Days |
-|---|---|---|---|
-| **6:00 AM** | US - Pre Market | Overnight + weekend news about your stocks | Mon–Fri |
-| **10:30 AM** | US - Mid Day | Mid-session market updates for your holdings | Mon–Fri |
-| **10:00 PM** | Asia - Market | News for your Asia holdings (before lunch in Asia) | Sun–Fri |
-
-Plus manual `/news` command anytime you want a briefing.
+- **💼 Full portfolio prices** — every stock you own, grouped by sector, every time (not just when in the news)
+- **🎯 Holdings in the news** — highlighted callout when your specific stocks are making headlines
+- **📈 Markets & Economy** — top market stories with sentiment tags
+- **🌍 World Events** — geopolitics, Fed policy, trade news
+- **🐂 Sentiment analysis** — Bullish / Bearish / Neutral on every article
+- **🕐 PST/PDT timezone** — auto-adjusts for daylight saving time
 
 ---
 
-## 💰 Cost: $0
+## 💰 Cost: $0/month
 
-| Component | Why It's Free |
-|-----------|---------------|
-| GitHub Actions | Free for public repos (unlimited minutes) |
-| Discord Bot | Free forever |
-| NewsAPI | Free tier: 100 requests/day (you use ~5-10) |
-| Yahoo Finance | Free public API (no key needed) |
-| Sentiment Analysis | Rule-based (no external API) |
+| Component | Free Tier Used |
+|-----------|----------------|
+| **GitHub Actions** | Free for public repos — runs the bot |
+| **Google Cloud Scheduler** | 3 jobs free forever — fires the trigger |
+| **Discord Bot** | Free forever |
+| **NewsAPI** | Free tier: 100 req/day (bot uses ~5–10) |
+| **Yahoo Finance** | Free public API, no key needed |
+| **RSS Feeds** (Bloomberg, Reuters, CNBC, SCMP, etc.) | Completely free, no key needed |
 
-**No credit card required.**
+**No credit card required for anything except Google Cloud** (billing must be enabled but you will not be charged within the free tier).
 
 ---
 
-## 🚀 Quick Start (15 minutes)
+## 🏗️ Architecture
+
+```
+Google Cloud Scheduler (fires at exact time)
+        ↓  HTTP POST to GitHub API
+GitHub repository_dispatch event (no queue delay)
+        ↓
+GitHub Actions (runs the Python bot)
+        ↓
+Discord Channel ✅
+```
+
+**Why Google Cloud Scheduler instead of GitHub's built-in cron?**  
+GitHub's scheduled workflows sit in a shared queue and can be delayed by 2–4 hours. Google Cloud Scheduler fires at the exact second and triggers GitHub via API — your briefings arrive on time.
+
+---
+
+## 📡 News Sources
+
+All free, no API keys required for RSS:
+
+| Source | Region | Type |
+|--------|--------|------|
+| Bloomberg Markets | US | RSS |
+| Reuters Business | US + Asia | RSS |
+| CNBC Markets | US | RSS |
+| CNBC Asia Pacific | Asia | RSS |
+| MarketWatch | US | RSS |
+| South China Morning Post | HK + China | RSS |
+| Nikkei Asia | Japan + Regional | RSS |
+| Straits Times | Singapore + SEA | RSS |
+| The Star Malaysia | Malaysia | RSS |
+| Arab News Business | Middle East | RSS |
+| Yahoo Finance (per-stock) | Global | RSS |
+| NewsAPI | US + Asia | API (macro + geopolitical context) |
+
+---
+
+## 🚀 Setup Guide (~30 minutes)
 
 ### Prerequisites
-- A Discord server (or create one)
-- A GitHub account
-- A free NewsAPI key from [newsapi.org](https://newsapi.org)
+- GitHub account
+- Google Cloud account (free — [console.cloud.google.com](https://console.cloud.google.com))
+- Discord server
 
-### Step 1: Set Up Discord
+---
 
-1. Create a Discord channel like `#daily-news`
-2. Enable Developer Mode: User Settings → Advanced → Developer Mode ON
-3. Right-click your channel → **Copy Channel ID**
+### Step 1 — Create Your Discord Bot
 
-### Step 2: Create Discord Bot
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application** → name it → Create
-3. Go to **Bot** tab → **Add Bot**
-4. Copy the **TOKEN**
-5. Go to **OAuth2 → URL Generator**:
+1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
+2. Click **New Application** → give it a name → **Create**
+3. Go to **Bot** tab → **Add Bot** → **Copy Token** (save this)
+4. Go to **OAuth2 → URL Generator**:
    - Scopes: ✅ `bot`
-   - Permissions: ✅ Send Messages, ✅ Embed Links
-6. Open the generated URL → authorize the bot to your server
+   - Bot Permissions: ✅ Send Messages, ✅ Embed Links
+5. Open the generated URL → add the bot to your server
 
-### Step 3: Get NewsAPI Key
+**Get your channel ID:**
+1. Discord Settings → Advanced → enable **Developer Mode**
+2. Right-click your `#news` channel → **Copy Channel ID**
+
+---
+
+### Step 2 — Get a Free NewsAPI Key
 
 1. Sign up at [newsapi.org](https://newsapi.org) (free)
 2. Copy your API key from the dashboard
 
-### Step 4: Fork This Repo
+---
 
-Click the **Fork** button at the top right.
+### Step 3 — Fork This Repo
 
-### Step 5: Add Secrets
+Click **Fork** at the top right of this page.
 
-In your forked repo:
-1. Go to **Settings** → **Secrets and variables** → **Actions**
-2. Click **New repository secret** and add:
+---
+
+### Step 4 — Add GitHub Secrets
+
+In your forked repo: **Settings → Secrets and variables → Actions → New repository secret**
 
 | Secret Name | Value |
 |-------------|-------|
-| `DISCORD_TOKEN` | Your bot token from Step 2 |
-| `DISCORD_CHANNEL_ID` | Your channel ID from Step 1 |
-| `NEWSAPI_KEY` | Your NewsAPI key from Step 3 |
+| `DISCORD_TOKEN` | Bot token from Step 1 |
+| `DISCORD_CHANNEL_ID` | Channel ID from Step 1 |
+| `NEWSAPI_KEY` | NewsAPI key from Step 2 |
 
-### Step 6: Customize Your Watchlist
+---
 
-Edit `bot_enhanced.py` and update these lists with your stocks:
+### Step 5 — Customize Your Watchlist
+
+Edit **`config.py`** — this is the only file you need to touch.
+
+#### US Stocks
+Add your tickers to the right category in `US_CATEGORIES`:
 
 ```python
-US_WATCHLIST = [
-    'NVDA', 'SPY', 'MSFT', 'PLTR', ...  # Add your US stocks
-]
-
-ASIA_WATCHLIST = [
-    '1810', '601318', 'MAYBANK', ...  # Add your Asia stocks
-]
+US_CATEGORIES = {
+    "📈 Growth / Tech":               ['NVDA', 'MSFT', 'PLTR', ...],
+    "📊 ETFs — Broad Market":         ['SPY', 'SCHD', ...],
+    "💰 ETFs — Income / Covered Call":['JEPQ', 'QYLD', ...],
+    "🏢 REITs":                       ['O', 'IRM', ...],
+    # ... add/remove categories as needed
+}
+# US_WATCHLIST is auto-generated from the above — do not edit it directly
 ```
 
-### Step 7: Test It
+#### Asia Stocks ⚠️ Two steps required
 
-1. Go to the **Actions** tab in your repo
-2. Click **Finance News Bot**
-3. Click **Run workflow** → pick a session → **Run workflow**
-4. Wait ~60 seconds, then check your Discord channel ✅
+Asia stocks need two entries: one in `ASIA_CATEGORIES` and one in `ASIA_YAHOO_FORMAT`.
 
-Starting tomorrow at 6:00 AM, briefings will run automatically!
-
----
-
-## 🎮 Using Slash Commands
-
-Once deployed, use `/news` in Discord to trigger any briefing manually:
-
-- `/news US - Pre Market` — Get the pre-market brief
-- `/news US - Mid Day` — Get the midday update
-- `/news Asia - Market` — Get the Asia brief
-
-Perfect for testing or getting updates outside the schedule.
-
----
-
-## 📊 How It Works
-
-### 1. **Fetch News**
-Queries NewsAPI for finance news (5-30 min delay from publication)
-
-### 2. **Match Your Stocks**
-Scans each article title/description for:
-- Ticker symbols (NVDA, SPY, etc.)
-- Company names (Nvidia, Microsoft, etc.)
-
-### 3. **Filter Strictly**
-- **Market articles**: Only shown if they mention YOUR stocks
-- **World events**: Always shown (Fed, geopolitics, US policy)
-
-### 4. **Fetch Prices**
-Gets live prices from Yahoo Finance for every matched stock
-
-### 5. **Detect Sentiment**
-Counts bullish/bearish keywords in each article
-
-### 6. **Format & Send**
-Builds beautiful Discord embeds and posts to your channel
-
----
-
-## ⚙️ Customization
-
-### Change Your Schedule
-
-Edit `.github/workflows/news_bot.yml` and modify the cron expressions:
-
-```yaml
-- cron: '0 14 * * 1-5'   # 6:00 AM PST (Mon–Fri)
-- cron: '30 18 * * 1-5'  # 10:30 AM PST (Mon–Fri)
-- cron: '0 6 * * 0-5'    # 10:00 PM PST (Sun–Fri)
+**Step A** — Add to `ASIA_CATEGORIES`:
+```python
+ASIA_CATEGORIES = {
+    "🏦 Banks / Financials": ['D05', 'S68', '601318', 'MAYBANK', ...],
+    # ...
+}
 ```
 
-Times are in UTC. Use [crontab.guru](https://crontab.guru) to convert.
+**Step B** — Add the Yahoo Finance format mapping in `ASIA_YAHOO_FORMAT`:
+```python
+ASIA_YAHOO_FORMAT = {
+    '1810': '1810.HK',      # Xiaomi (Hong Kong)
+    '601318': '601318.SS',  # Ping An (Shanghai)
+    'D05': 'D05.SI',        # DBS (Singapore)
+    'MAYBANK': '1155.KL',   # Maybank (Malaysia)
+    # your new stock here
+}
+```
 
-### Add More Stocks
+Exchange suffix reference:
 
-Edit the `US_WATCHLIST` and `ASIA_WATCHLIST` at the top of `bot_enhanced.py`.
+| Suffix | Exchange | Example |
+|--------|----------|---------|
+| `.HK` | Hong Kong | `0700.HK` = Tencent |
+| `.SS` | Shanghai | `601318.SS` = Ping An |
+| `.SZ` | Shenzhen | `000001.SZ` = Ping An Bank |
+| `.TW` | Taiwan | `2330.TW` = TSMC |
+| `.SI` | Singapore | `D05.SI` = DBS |
+| `.KL` | Malaysia | `1155.KL` = Maybank |
+| `.T` | Tokyo | `7203.T` = Toyota |
+| `.KS` | Seoul | `005930.KS` = Samsung |
 
-### Add Company Names
+#### (Optional) Add company name mappings
 
-Edit `NAME_TO_TICKER` to add mappings:
+So "Nvidia" in a headline gets matched to NVDA:
 
 ```python
 NAME_TO_TICKER = {
     'nvidia': 'NVDA',
-    'your company': 'YOUR_TICKER',
+    'your company name': 'YOUR_TICKER',
     ...
 }
 ```
 
-### Adjust Sentiment Keywords
+---
 
-Edit `BULLISH_KEYWORDS` and `BEARISH_KEYWORDS` lists.
+### Step 6 — Set Up Google Cloud Scheduler
+
+This is what fires your briefings on time. Takes about 5 minutes.
+
+**6a. Create a GitHub Personal Access Token (PAT)**
+
+1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new)
+2. Note: `Finance News Bot`
+3. Expiration: `No expiration`
+4. Scopes: check only ✅ **`repo`**
+5. Click **Generate token** → copy it
+
+**6b. Open Google Cloud Shell**
+
+Go to [console.cloud.google.com](https://console.cloud.google.com) → click the **`>_`** icon in the top toolbar.
+
+**6c. Paste this script** (replace `YOUR_PAT_HERE` and `YOUR_GITHUB_USERNAME`):
+
+```bash
+# ── Only change these two lines ────────────────────────────
+PAT="YOUR_PAT_HERE"
+GITHUB_USER="YOUR_GITHUB_USERNAME"
+# ───────────────────────────────────────────────────────────
+
+REPO="${GITHUB_USER}/finance-news-discord-bot"
+URL="https://api.github.com/repos/${REPO}/dispatches"
+LOCATION="us-west1"
+TZ="America/Los_Angeles"
+
+gcloud services enable cloudscheduler.googleapis.com
+
+gcloud scheduler jobs create http finance-news-premarket \
+  --location=$LOCATION \
+  --schedule="0 6 * * 1-5" \
+  --uri="$URL" --http-method=POST \
+  --headers="Authorization=token ${PAT},Content-Type=application/json,Accept=application/vnd.github.v3+json" \
+  --message-body='{"event_type":"finance_news_trigger","client_payload":{"session":"us_premarket"}}' \
+  --time-zone="$TZ" --description="Finance News Bot - US Pre-Market 6:00 AM PT"
+
+gcloud scheduler jobs create http finance-news-midday \
+  --location=$LOCATION \
+  --schedule="30 10 * * 1-5" \
+  --uri="$URL" --http-method=POST \
+  --headers="Authorization=token ${PAT},Content-Type=application/json,Accept=application/vnd.github.v3+json" \
+  --message-body='{"event_type":"finance_news_trigger","client_payload":{"session":"us_midday"}}' \
+  --time-zone="$TZ" --description="Finance News Bot - US Midday 10:30 AM PT"
+
+gcloud scheduler jobs create http finance-news-asia \
+  --location=$LOCATION \
+  --schedule="0 22 * * 0-4" \
+  --uri="$URL" --http-method=POST \
+  --headers="Authorization=token ${PAT},Content-Type=application/json,Accept=application/vnd.github.v3+json" \
+  --message-body='{"event_type":"finance_news_trigger","client_payload":{"session":"asia"}}' \
+  --time-zone="$TZ" --description="Finance News Bot - Asia Markets 10:00 PM PT"
+
+echo "✅ Done!"
+gcloud scheduler jobs list --location=$LOCATION
+```
+
+You should see 3 jobs listed. **DST is handled automatically** — no manual time changes needed ever.
 
 ---
 
-## 📍 Timezone Note
+### Step 7 — Test It
 
-**Currently set for PST (UTC-8).**
+**Test via GitHub Actions (instant):**
+1. Go to your repo → **Actions** tab → **Finance News Bot**
+2. Click **Run workflow** → select a session → **Run workflow**
+3. Check your Discord channel in ~60 seconds
 
-When daylight saving time starts in March 2027 (switch to PDT, UTC-7), add 1 hour to each UTC cron time in the workflow file.
+**Test via Cloud Scheduler (proves the full pipeline):**
+```bash
+gcloud scheduler jobs run finance-news-premarket --location=us-west1
+```
 
 ---
 
-## 🔍 What News Gets Shown?
+## ⚙️ Adjusting the Schedule
 
-### ✅ Always Shown
-- **Market articles** that mention your stocks
-- **World events**: Fed announcements, Congress, trade policy, geopolitics
-- **Earnings** for your holdings
+The schedule is set in Google Cloud Scheduler (your 3 jobs) **and** as a fallback in `.github/workflows/news_bot.yml`.
 
-### ❌ Filtered Out
-- Market news that doesn't mention your stocks
-- Crypto (unless you add it to your watchlist)
-- Unrelated financial news
+If you want different times, update **both**:
 
-### Example
-If you hold NVDA and SPY, you **will see**:
-- "Nvidia cuts prices amid competition" → mentions NVDA ✅
-- "S&P 500 falls on inflation fears" → mentions S&P 500 ✅
-- "Fed raises interest rates" → world events ✅
+1. In Google Cloud Console → Cloud Scheduler → edit the job's cron expression
+2. In `.github/workflows/news_bot.yml` → update the matching `cron:` line and the `github.event.schedule` comparison
 
-You **won't see**:
-- "Tesla delivers record cars" → doesn't mention your stocks ❌
-- "Apple announces new iPhone" → doesn't mention your stocks ❌
+Times use `America/Los_Angeles` timezone — DST is handled automatically.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Python 3.11** — Bot logic
-- **discord.py** — Discord API wrapper
-- **GitHub Actions** — Scheduled execution (free hosting)
-- **NewsAPI** — News aggregation
-- **Yahoo Finance** — Stock prices (no API key needed)
-
----
-
-## ⚠️ Limitations
-
-- **News delay**: 5-30 minutes from publication (NewsAPI free tier)
-- **GitHub delay**: Scheduled jobs run ±10-15 min from scheduled time
-- **Stock prices**: 15-minute delayed (Yahoo Finance free)
-- **Rate limits**: NewsAPI free = 100 req/day (you use ~5-10)
-- **International stocks**: Some tickers need suffixes (1810.HK for Xiaomi) — bot still highlights them but may not fetch prices
-
----
-
-## 🤝 Contributing
-
-Found a bug? Have a feature idea? PRs welcome!
-
-Ideas for contributions:
-- Support for crypto tickers
-- Earnings calendar integration
-- Better sentiment analysis (HuggingFace BERT)
-- Slack/Telegram delivery
-- Multi-user support with personal watchlists
-
----
-
-## 📄 License
-
-MIT License — feel free to fork, modify, and share.
+| Component | Purpose |
+|-----------|---------|
+| Python 3.11 | Bot logic |
+| discord.py | Discord API |
+| requests | HTTP + RSS fetching |
+| xml.etree (stdlib) | RSS parsing — no extra library needed |
+| concurrent.futures (stdlib) | Parallel price fetching |
+| zoneinfo (stdlib) | PST/PDT timezone |
+| GitHub Actions | Runs the bot on demand |
+| Google Cloud Scheduler | Reliable cron trigger |
+| Yahoo Finance (free) | Live stock prices |
+| NewsAPI (free tier) | Macro + geopolitical news |
+| 10+ RSS Feeds (free) | Primary news source |
 
 ---
 
 ## ❓ FAQ
 
-**Q: Does this give me real-time alerts?**  
-A: No. This is a **digest bot** with 5-30 min delay from news publication. For real-time trading alerts, you'd need paid APIs.
+**Q: Do I need to update times when daylight saving changes?**  
+A: No. Google Cloud Scheduler uses `America/Los_Angeles` — it handles DST automatically.
 
-**Q: Why don't I see stocks from my watchlist sometimes?**  
-A: If no articles mention them that day, they won't appear. The bot only shows news that actually covers your holdings.
+**Q: Why are my stocks not showing?**  
+A: The portfolio section always shows all your stocks. If nothing appears, check that `config.py` is saved and committed. Asia stocks also need an entry in `ASIA_YAHOO_FORMAT` or prices will show as `—`.
 
-**Q: Can I use this for international stocks?**  
-A: Yes! Add ticker symbols to `ASIA_WATCHLIST` and optionally add company names to `NAME_TO_TICKER`.
+**Q: Why does the briefing arrive a few minutes late?**  
+A: Google Cloud Scheduler fires on the exact second, but GitHub Actions still takes 30–90 seconds to spin up a runner. This is normal and unavoidable — it's a few minutes, not hours.
 
-**Q: Will this cost me money?**  
-A: No. GitHub Actions is free for public repos, NewsAPI is free, Yahoo Finance is free. Ever.
+**Q: Why aren't some Asia stock prices loading?**  
+A: Each Asia stock needs a mapping in `ASIA_YAHOO_FORMAT` in `config.py`. Without it, the bot doesn't know which exchange suffix to use. See Step 5 above.
 
-**Q: Can I change the times?**  
-A: Yes, edit `.github/workflows/news_bot.yml` and adjust the cron expressions.
+**Q: Can I add crypto?**  
+A: Yes — Bitcoin is `BTC-USD`, Ethereum is `ETH-USD` on Yahoo Finance. Add them to `US_CATEGORIES` and they'll get live prices.
 
-**Q: What if GitHub Actions goes down?**  
-A: Your briefings won't send that day. You can still manually trigger with `/news` anytime.
+**Q: Can I add more news sources?**  
+A: Yes — edit `RSS_US` or `RSS_ASIA` in `bot_enhanced.py`. Any RSS 2.0 or Atom feed works. No library needed.
+
+**Q: What if GitHub Actions is down?**  
+A: Google Cloud Scheduler will keep firing the trigger. Once Actions recovers it will process the queued dispatch. You can also trigger manually from the Actions tab.
+
+**Q: Is this real-time?**  
+A: No. This is a scheduled digest. RSS feeds are near real-time (1–5 min). NewsAPI has a 5–30 min delay on the free tier. Stock prices from Yahoo Finance are 15-min delayed.
 
 ---
 
-*Built with ❤️ using free APIs. No sponsored content or ads.*
+## 📄 License
+
+MIT — fork it, modify it, share it.
