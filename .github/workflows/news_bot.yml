@@ -1,26 +1,30 @@
 name: Finance News Bot
 
 # ============================================================
-# Schedule is in UTC. Currently set for PDT (UTC-7, Mar–Nov).
-# When DST ends in November, add 1 hour to each UTC time.
-#   Pre-market:  '0 13' → '0 14'
-#   Midday:      '30 17' → '30 18'
-#   Asia:        '0 5'  → '0 6'
+# PRIMARY trigger: Google Cloud Scheduler → repository_dispatch
+#   - Fires at exact time, no queue delay
+#   - 3 Cloud Scheduler jobs (free tier) → one per session
+#
+# FALLBACK: GitHub cron (kept in case Cloud Scheduler is down)
+# Schedule is UTC. Currently PDT (UTC-7, Mar–Nov).
+# DST change Nov: '0 13'→'0 14', '30 17'→'30 18', '0 5'→'0 6'
 # ============================================================
 
 on:
+  # 🌩️ PRIMARY: Google Cloud Scheduler fires this via GitHub API
+  repository_dispatch:
+    types: [finance_news_trigger]
+
+  # 🔁 FALLBACK: GitHub's own cron (kept as backup)
   schedule:
     # 🇺🇸 US Pre-market: 6:00 AM PT = 13:00 UTC (Mon-Fri)
     - cron: '0 13 * * 1-5'
-
     # 📊 US Midday: 10:30 AM PT = 17:30 UTC (Mon-Fri)
     - cron: '30 17 * * 1-5'
-
-    # 🌏 Asia Pre-market: 10:00 PM PT = 05:00 UTC next day
-    # Covers Sun–Thu PT nights → Mon–Fri UTC (Mon–Fri Asian trading prep)
+    # 🌏 Asia: 10:00 PM PT = 05:00 UTC next day (Mon-Fri UTC = Sun-Thu PT)
     - cron: '0 5 * * 1-5'
 
-  # Manual trigger from GitHub UI (great for testing)
+  # 🖐️ Manual trigger from GitHub UI (for testing)
   workflow_dispatch:
     inputs:
       session:
@@ -54,16 +58,23 @@ jobs:
         id: session
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger — use the dropdown selection
+            # Manual trigger — use the dropdown
             echo "session=${{ github.event.inputs.session }}" >> $GITHUB_OUTPUT
+
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            # Google Cloud Scheduler trigger — session passed in payload
+            echo "session=${{ github.event.client_payload.session }}" >> $GITHUB_OUTPUT
+
           elif [ "${{ github.event.schedule }}" == "0 13 * * 1-5" ]; then
+            # Fallback cron: pre-market
             echo "session=us_premarket" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" == "30 17 * * 1-5" ]; then
+            # Fallback cron: midday
             echo "session=us_midday" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" == "0 5 * * 1-5" ]; then
+            # Fallback cron: asia
             echo "session=asia" >> $GITHUB_OUTPUT
           else
-            # Fallback (should never hit this)
             echo "session=us_premarket" >> $GITHUB_OUTPUT
           fi
 
