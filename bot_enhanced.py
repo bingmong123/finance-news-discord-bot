@@ -23,13 +23,16 @@ import re
 
 # ============ IMPORT WATCHLISTS FROM config.py ============
 try:
-    from config import US_WATCHLIST, ASIA_WATCHLIST, ASIA_YAHOO_FORMAT, NAME_TO_TICKER
+    from config import (US_WATCHLIST, ASIA_WATCHLIST, ASIA_YAHOO_FORMAT,
+                        NAME_TO_TICKER, US_CATEGORIES, ASIA_CATEGORIES)
 except ImportError:
     print("[!] config.py not found — using empty watchlists")
     US_WATCHLIST = []
     ASIA_WATCHLIST = []
     ASIA_YAHOO_FORMAT = {}
     NAME_TO_TICKER = {}
+    US_CATEGORIES = {}
+    ASIA_CATEGORIES = {}
 
 # ============ CONFIGURATION ============
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -45,17 +48,20 @@ SESSION = os.getenv("SESSION", "us_premarket")
 
 # Active watchlist & display settings
 if SESSION == "asia":
-    WATCHLIST = ASIA_WATCHLIST
+    WATCHLIST   = ASIA_WATCHLIST
+    CATEGORIES  = ASIA_CATEGORIES
     SESSION_NAME = "🌏 ASIA MARKETS"
     SESSION_DESC = "Before Asia trading session"
     SESSION_COLOR = 0x7F77DD  # Purple
 elif SESSION == "us_midday":
-    WATCHLIST = US_WATCHLIST
+    WATCHLIST   = US_WATCHLIST
+    CATEGORIES  = US_CATEGORIES
     SESSION_NAME = "📊 US MIDDAY UPDATE"
     SESSION_DESC = "Market check-in"
     SESSION_COLOR = 0xEF9F27  # Amber
 else:  # us_premarket
-    WATCHLIST = US_WATCHLIST
+    WATCHLIST   = US_WATCHLIST
+    CATEGORIES  = US_CATEGORIES
     SESSION_NAME = "🇺🇸 US PRE-MARKET"
     SESSION_DESC = "Good morning briefing"
     SESSION_COLOR = 0x1D9E75  # Teal
@@ -375,28 +381,20 @@ def build_embeds(articles):
     print(f"[*] Fetching prices for all {len(WATCHLIST)} stocks in parallel…")
     price_cache = fetch_all_prices(WATCHLIST)
 
-    # ── PORTFOLIO PRICES (always shown, every brief) ─────────────────────
-    # Split into batches of 24 (Discord max is 25 fields per embed)
-    BATCH_SIZE = 24
-    total_batches = max(1, (len(WATCHLIST) + BATCH_SIZE - 1) // BATCH_SIZE)
-    for batch_idx in range(total_batches):
-        batch = WATCHLIST[batch_idx * BATCH_SIZE:(batch_idx + 1) * BATCH_SIZE]
-        title = "💼 YOUR PORTFOLIO"
-        if total_batches > 1:
-            title += f" ({batch_idx + 1}/{total_batches})"
-
-        portfolio_embed = discord.Embed(
-            title=title,
-            description="*Live prices for your watchlist*" if batch_idx == 0 else None,
-            color=0x534AB7,
+    # ── PORTFOLIO PRICES grouped by sector (always shown) ────────────────
+    portfolio_embed = discord.Embed(
+        title="💼 YOUR PORTFOLIO",
+        description="*Live prices — grouped by sector*",
+        color=0x534AB7,
+    )
+    for category_name, tickers in CATEGORIES.items():
+        lines = [format_price(price_cache.get(t), t) for t in tickers]
+        portfolio_embed.add_field(
+            name=category_name,
+            value="\n".join(lines),
+            inline=False,
         )
-        for ticker in batch:
-            portfolio_embed.add_field(
-                name="​",  # zero-width space
-                value=format_price(price_cache.get(ticker), ticker),
-                inline=True,  # 3 per row — compact
-            )
-        embeds.append(portfolio_embed)
+    embeds.append(portfolio_embed)
 
     # ── Map articles → mentioned stocks ──────────────────────────────────
     all_mentioned    = set()

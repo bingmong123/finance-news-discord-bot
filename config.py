@@ -12,33 +12,27 @@ on the next scheduled run (or manual trigger).
 
 
 # ============================================================
-# 🇺🇸 US WATCHLIST — Easy! Just add your US stock tickers
+# 🇺🇸 US WATCHLIST — grouped by sector
 # ============================================================
-# US stocks use simple ticker symbols (no exchange suffix needed)
-# Examples: AAPL, GOOGL, TSLA, NVDA, SPY, QQQ, VOO
+# To add a stock: put it in the right category below.
+# US_WATCHLIST is auto-derived — do NOT edit it directly.
 
-US_WATCHLIST = [
-    # Growth / Tech
-    'NVDA', 'PLTR', 'MSFT', 'MSFU', 'CSCO', 'NFLX', 'SPOT', 'NIO', 'ZM',
-    # ETFs — Broad Market
-    'SPY', 'SCHD', 'SCHG', 'SCHY', 'SCHF', 'VOOG',
-    # ETFs — Income / Covered Call
-    'JEPQ', 'YMAX', 'QYLD', 'XDTE',
-    # REITs
-    'O', 'MPT', 'IRM',
-    # Income / Dividend Stocks
-    'AGNC', 'ARCC', 'MAIN', 'GOF', 'PDI',
-    # Energy / Infrastructure
-    'EPD', 'ET',
-    # Consumer / Retail
-    'PEP', 'WMT', 'CCL',
-    # Telecom
-    'T', 'NDAQ',
-    # Tobacco
-    'MO',
-    # Small / Specialty
-    'TDUP', 'SLVM',
-]
+US_CATEGORIES = {
+    "📈 Growth / Tech":               ['NVDA', 'PLTR', 'MSFT', 'MSFU', 'CSCO', 'NFLX', 'SPOT', 'NIO', 'ZM'],
+    "📊 ETFs — Broad Market":         ['SPY', 'SCHD', 'SCHG', 'SCHY', 'SCHF', 'VOOG'],
+    "💰 ETFs — Income / Covered Call":['JEPQ', 'YMAX', 'QYLD', 'XDTE'],
+    "🏢 REITs":                       ['O', 'MPT', 'IRM'],
+    "💵 Income / Dividend":           ['AGNC', 'ARCC', 'MAIN', 'GOF', 'PDI'],
+    "⚡ Energy":                      ['EPD', 'ET'],
+    "🛒 Consumer / Retail":           ['PEP', 'WMT', 'CCL'],
+    "📡 Telecom":                     ['T'],
+    "🏦 Financials":                  ['NDAQ'],
+    "🚬 Tobacco":                     ['MO'],
+    "🔬 Specialty":                   ['TDUP', 'SLVM'],
+}
+
+# Auto-derived — do not edit directly
+US_WATCHLIST = [t for tickers in US_CATEGORIES.values() for t in tickers]
 
 
 # ============================================================
@@ -56,29 +50,17 @@ US_WATCHLIST = [
 #
 # ============================================================
 
-ASIA_WATCHLIST = [
-    # Singapore
-    'S68',     # Singapore Exchange
-    'S63',     # Singapore Tech Engineering
-    'D05',     # DBS Group
-    'Y92',     # Thai Beverage
-    # Hong Kong
-    '1810',    # Xiaomi
-    '66',      # MTR Corp
-    '823',     # Link REIT
-    # Shanghai (China A-shares)
-    '601318',  # Ping An Insurance
-    '601668',  # China State Construction
-    '601288',  # Agricultural Bank of China
-    '601398',  # ICBC
-    '600019',  # Baoshan Iron & Steel
-    # Taiwan
-    '2618',    # EVA Airways
-    '2610',    # China Airlines
-    # Malaysia
-    'TENAGA',  # Tenaga Nasional
-    'MAYBANK', # Malayan Banking
-]
+ASIA_CATEGORIES = {
+    "🏦 Banks / Financials":     ['D05', 'S68', '601318', '601288', '601398', 'MAYBANK'],
+    "🏗️ Infrastructure / REITs": ['66', '823', 'TENAGA'],
+    "💻 Tech / Industrial":      ['1810', 'S63'],
+    "🏭 Steel / Construction":   ['600019', '601668'],
+    "✈️ Airlines":               ['2618', '2610'],
+    "🍺 Beverages":              ['Y92'],
+}
+
+# Auto-derived — do not edit directly
+ASIA_WATCHLIST = [t for tickers in ASIA_CATEGORIES.values() for t in tickers]
 
 
 # ============================================================
