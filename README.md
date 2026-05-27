@@ -4,10 +4,9 @@
 
 [![Python](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.com/)
-[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![GCP Scheduler](https://img.shields.io/badge/trigger-Google%20Cloud%20Scheduler-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/scheduler)
 [![No API Keys](https://img.shields.io/badge/news-RSS%20only%2C%20no%20API%20keys-brightgreen)](https://github.com/bingmong123/finance-news-discord-bot)
-[![Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)](https://github.com/features/actions)
+[![Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)](https://github.com/bingmong123/finance-news-discord-bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -25,6 +24,7 @@ Three automatic briefings per weekday, delivered to your Discord channel:
 ### Each briefing includes:
 
 - **💼 Full portfolio prices** — every stock you own, grouped by sector, every time (not just when in the news)
+- **👀 Watchlist prices** — stocks you're tracking but don't own yet, shown right below the portfolio
 - **🎯 Holdings in the news** — highlighted callout when your specific stocks are making headlines
 - **📈 Markets & Economy** — top market stories with sentiment tags
 - **🌍 World Events** — geopolitics, Fed policy, trade news
@@ -37,7 +37,7 @@ Three automatic briefings per weekday, delivered to your Discord channel:
 
 | Component | Free Tier Used |
 |-----------|----------------|
-| **GitHub Actions** | Free for public repos — runs the bot |
+| **GitHub** | Free public repo — hosts the bot code |
 | **Google Cloud Scheduler** | 3 jobs free forever — fires the trigger |
 | **Discord Bot** | Free forever |
 | **Yahoo Finance** | Free public API, no key needed |
@@ -52,21 +52,20 @@ Three automatic briefings per weekday, delivered to your Discord channel:
 ```
 Google Cloud Scheduler (fires at exact time)
         ↓  HTTP POST to GitHub API
-GitHub repository_dispatch event (no queue delay)
+Repository webhook triggers bot script
         ↓
-GitHub Actions (runs the Python bot)
+Bot fetches news + prices, builds embeds
         ↓
 Discord Channel ✅
 ```
 
-**Why Google Cloud Scheduler instead of GitHub's built-in cron?**  
-GitHub's scheduled workflows sit in a shared queue and can be delayed by 2–4 hours. Google Cloud Scheduler fires at the exact second and triggers GitHub via API — your briefings arrive on time.
+Google Cloud Scheduler fires at the exact second via API — your briefings arrive on time, every time.
 
 ---
 
 ## 📡 News Sources
 
-All free, no API keys required for RSS:
+All free, no API keys required:
 
 | Source | Region | Type |
 |--------|--------|------|
@@ -75,13 +74,14 @@ All free, no API keys required for RSS:
 | CNBC Markets | US | RSS |
 | CNBC Asia Pacific | Asia | RSS |
 | MarketWatch | US | RSS |
+| Federal Reserve | US | RSS (official) |
 | South China Morning Post | HK + China | RSS |
 | Nikkei Asia | Japan + Regional | RSS |
 | Straits Times | Singapore + SEA | RSS |
 | The Star Malaysia | Malaysia | RSS |
 | Arab News Business | Middle East | RSS |
+| Al Jazeera | Global | RSS |
 | Yahoo Finance (per-stock) | Global | RSS |
-| NewsAPI | US + Asia | API (macro + geopolitical context) |
 
 ---
 
@@ -91,7 +91,6 @@ All free, no API keys required for RSS:
 - GitHub account
 - Google Cloud account (free — [console.cloud.google.com](https://console.cloud.google.com))
 - Discord server
-- No NewsAPI key needed — all news comes from free RSS feeds
 
 ---
 
@@ -117,7 +116,7 @@ Click **Fork** at the top right of this page.
 
 ---
 
-### Step 3 — Add GitHub Secrets
+### Step 3 — Add Secrets
 
 In your forked repo: **Settings → Secrets and variables → Actions → New repository secret**
 
@@ -137,14 +136,22 @@ Add your tickers to the right category in `US_CATEGORIES`:
 
 ```python
 US_CATEGORIES = {
-    "📈 Growth / Tech":               ['NVDA', 'MSFT', 'PLTR', ...],
-    "📊 ETFs — Broad Market":         ['SPY', 'SCHD', ...],
+    "📈 Growth / Tech":               ['CSCO', 'MSFT', 'NVDA', 'PLTR', ...],
+    "📊 ETFs — Broad Market":         ['SCHD', 'SPY', 'VOOG', ...],
     "💰 ETFs — Income / Covered Call":['JEPQ', 'QYLD', ...],
-    "🏢 REITs":                       ['O', 'IRM', ...],
+    "🏢 REITs":                       ['IRM', 'O', ...],
     # ... add/remove categories as needed
 }
 # US_WATCHLIST is auto-generated from the above — do not edit it directly
 ```
+
+#### Watchlist (stocks you're tracking but don't own yet)
+
+```python
+US_WATCHLIST_WATCH = ['BABA', 'BTDR', 'HOOD', 'RIOT', 'SMCI', 'SOFI']
+```
+
+These appear in a separate **👀 WATCHLIST** section below your portfolio in every US briefing.
 
 #### Asia Stocks ⚠️ Two steps required
 
@@ -153,7 +160,7 @@ Asia stocks need two entries: one in `ASIA_CATEGORIES` and one in `ASIA_YAHOO_FO
 **Step A** — Add to `ASIA_CATEGORIES`:
 ```python
 ASIA_CATEGORIES = {
-    "🏦 Banks / Financials": ['D05', 'S68', '601318', 'MAYBANK', ...],
+    "🏦 Banks / Financials": ['601288', '601318', 'D05', 'MAYBANK', ...],
     # ...
 }
 ```
@@ -200,7 +207,7 @@ NAME_TO_TICKER = {
 
 This is what fires your briefings on time. Takes about 5 minutes.
 
-**6a. Create a GitHub Personal Access Token (PAT)**
+**5a. Create a GitHub Personal Access Token (PAT)**
 
 1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new)
 2. Note: `Finance News Bot`
@@ -208,11 +215,11 @@ This is what fires your briefings on time. Takes about 5 minutes.
 4. Scopes: check only ✅ **`repo`**
 5. Click **Generate token** → copy it
 
-**6b. Open Google Cloud Shell**
+**5b. Open Google Cloud Shell**
 
 Go to [console.cloud.google.com](https://console.cloud.google.com) → click the **`>_`** icon in the top toolbar.
 
-**6c. Paste this script** (replace `YOUR_PAT_HERE` and `YOUR_GITHUB_USERNAME`):
+**5c. Paste this script** (replace `YOUR_PAT_HERE` and `YOUR_GITHUB_USERNAME`):
 
 ```bash
 # ── Only change these two lines ────────────────────────────
@@ -261,7 +268,7 @@ You should see 3 jobs listed. **DST is handled automatically** — no manual tim
 
 ### Step 6 — Test It
 
-**Test via GitHub Actions (instant):**
+**Manual trigger (instant):**
 1. Go to your repo → **Actions** tab → **Finance News Bot**
 2. Click **Run workflow** → select a session → **Run workflow**
 3. Check your Discord channel in ~60 seconds
@@ -275,10 +282,7 @@ gcloud scheduler jobs run finance-news-premarket --location=us-west1
 
 ## ⚙️ Adjusting the Schedule
 
-**All scheduling is done in Google Cloud Scheduler only.**  
-GitHub Actions has no cron schedules — it is execution-only. This keeps timing exact and removes the 2–4 hour queue delay GitHub's built-in cron has.
-
-To change the time a briefing fires:
+All scheduling is handled by Google Cloud Scheduler. To change the time a briefing fires:
 
 1. Go to [Google Cloud Console → Cloud Scheduler](https://console.cloud.google.com/cloudscheduler)
 2. Click the job you want to change (e.g. `finance-news-premarket`)
@@ -288,15 +292,11 @@ Times use `America/Los_Angeles` timezone — DST is handled automatically, no ma
 
 ### How to disable a briefing (e.g. stop the Asia session)
 
-In Cloud Scheduler, click the job → **Disable**. GitHub Actions will simply never be triggered for that session.
+In Cloud Scheduler, click the job → **Disable**. The bot will simply never be triggered for that session.
 
 ### How to stop all briefings temporarily
 
-Disable all 3 Cloud Scheduler jobs. The GitHub Actions workflow stays in place and can be re-enabled any time.
-
-### Removing GitHub Actions' built-in cron (already done in this repo)
-
-This repo's workflow uses only `repository_dispatch` (Cloud Scheduler trigger) and `workflow_dispatch` (manual test button). There is no `schedule:` block in `.github/workflows/news_bot.yml` — so there is nothing to remove. If you forked an older version that still has a `schedule:` block, delete those lines from the workflow file.
+Disable all 3 Cloud Scheduler jobs. Re-enable them any time to resume.
 
 ---
 
@@ -310,11 +310,9 @@ This repo's workflow uses only `repository_dispatch` (Cloud Scheduler trigger) a
 | xml.etree (stdlib) | RSS parsing — no extra library needed |
 | concurrent.futures (stdlib) | Parallel price fetching |
 | zoneinfo (stdlib) | PST/PDT timezone |
-| GitHub Actions | Runs the bot on demand |
 | Google Cloud Scheduler | Reliable cron trigger |
 | Yahoo Finance (free) | Live stock prices |
-| NewsAPI (free tier) | Macro + geopolitical news |
-| 10+ RSS Feeds (free) | Primary news source |
+| 13 RSS Feeds (free) | All news — no API keys |
 
 ---
 
@@ -327,22 +325,22 @@ A: No. Google Cloud Scheduler uses `America/Los_Angeles` — it handles DST auto
 A: The portfolio section always shows all your stocks. If nothing appears, check that `config.py` is saved and committed. Asia stocks also need an entry in `ASIA_YAHOO_FORMAT` or prices will show as `—`.
 
 **Q: Why does the briefing arrive a few minutes late?**  
-A: Google Cloud Scheduler fires on the exact second, but GitHub Actions still takes 30–90 seconds to spin up a runner. This is normal and unavoidable — it's a few minutes, not hours.
+A: Google Cloud Scheduler fires on the exact second, but the bot runner still takes 30–90 seconds to spin up. This is normal and unavoidable — it's a few minutes, not hours.
 
 **Q: Why aren't some Asia stock prices loading?**  
-A: Each Asia stock needs a mapping in `ASIA_YAHOO_FORMAT` in `config.py`. Without it, the bot doesn't know which exchange suffix to use. See Step 5 above.
+A: Each Asia stock needs a mapping in `ASIA_YAHOO_FORMAT` in `config.py`. Without it, the bot doesn't know which exchange suffix to use. See Step 4 above.
 
 **Q: Can I add crypto?**  
 A: Yes — Bitcoin is `BTC-USD`, Ethereum is `ETH-USD` on Yahoo Finance. Add them to `US_CATEGORIES` and they'll get live prices.
 
 **Q: Can I add more news sources?**  
-A: Yes — edit `RSS_US` or `RSS_ASIA` in `bot_enhanced.py`. Any RSS 2.0 or Atom feed works. No library needed.
+A: Yes — edit `RSS_US` or `RSS_ASIA` in `bot_enhanced.py`. Any RSS 2.0 or Atom feed works. No extra library needed.
 
-**Q: What if GitHub Actions is down?**  
-A: Google Cloud Scheduler will keep firing the trigger. Once Actions recovers it will process the queued dispatch. You can also trigger manually from the Actions tab.
+**Q: What if the bot runner is temporarily unavailable?**  
+A: Google Cloud Scheduler will keep firing the trigger. Once the runner recovers it will process the queued dispatch. You can also trigger manually from the Actions tab.
 
 **Q: Is this real-time?**  
-A: No. This is a scheduled digest. RSS feeds are near real-time (1–5 min). NewsAPI has a 5–30 min delay on the free tier. Stock prices from Yahoo Finance are 15-min delayed.
+A: No. This is a scheduled digest. RSS feeds update every 1–5 minutes. Stock prices from Yahoo Finance are 15-min delayed.
 
 ---
 
