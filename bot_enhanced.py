@@ -52,19 +52,19 @@ if SESSION == "asia":
     WATCHLIST   = ASIA_WATCHLIST
     CATEGORIES  = ASIA_CATEGORIES
     SESSION_NAME = "🌏 ASIA MARKETS"
-    SESSION_DESC = "Before Asia trading session"
+    SESSION_DESC = "🌏 Asia Session Prep"
     SESSION_COLOR = 0x7F77DD  # Purple
 elif SESSION == "us_midday":
     WATCHLIST   = US_WATCHLIST
     CATEGORIES  = US_CATEGORIES
-    SESSION_NAME = "📊 US MIDDAY UPDATE"
+    SESSION_NAME = "📊 US MID DAY UPDATE"
     SESSION_DESC = "Market check-in"
     SESSION_COLOR = 0xEF9F27  # Amber
 else:  # us_premarket
     WATCHLIST   = US_WATCHLIST
     CATEGORIES  = US_CATEGORIES
     SESSION_NAME = "🇺🇸 US PRE-MARKET"
-    SESSION_DESC = "Good morning briefing"
+    SESSION_DESC = "☀️ US Pre-Market"
     SESSION_COLOR = 0x1D9E75  # Teal
 
 # ============ SENTIMENT KEYWORDS ============
