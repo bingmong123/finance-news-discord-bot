@@ -34,6 +34,14 @@ US_CATEGORIES = {
 # Auto-derived — do not edit directly
 US_WATCHLIST = [t for tickers in US_CATEGORIES.values() for t in tickers]
 
+# ============================================================
+# 👀 WATCHLIST — stocks you're tracking but don't own yet
+# ============================================================
+# These appear in a separate section below your portfolio.
+# No sector grouping — just live prices at a glance.
+
+US_WATCHLIST_WATCH = ['HOOD', 'BABA', 'BTDR', 'RIOT', 'SMCI']
+
 
 # ============================================================
 # 🌏 ASIA WATCHLIST — ⚠️ READ THIS CAREFULLY! ⚠️
@@ -208,4 +216,17 @@ NAME_TO_TICKER = {
     
     # EV / China
     'nio inc': 'NIO',
+
+    # Watchlist
+    'robinhood': 'HOOD',
+    'robinhood markets': 'HOOD',
+    'alibaba': 'BABA',
+    'alibaba group': 'BABA',
+    'bitdeer': 'BTDR',
+    'bitdeer technologies': 'BTDR',
+    'riot platforms': 'RIOT',
+    'riot blockchain': 'RIOT',
+    'super micro': 'SMCI',
+    'supermicro': 'SMCI',
+    'super micro computer': 'SMCI',
 }

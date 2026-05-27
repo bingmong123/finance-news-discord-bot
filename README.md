@@ -275,14 +275,28 @@ gcloud scheduler jobs run finance-news-premarket --location=us-west1
 
 ## ⚙️ Adjusting the Schedule
 
-The schedule is set in Google Cloud Scheduler (your 3 jobs) **and** as a fallback in `.github/workflows/news_bot.yml`.
+**All scheduling is done in Google Cloud Scheduler only.**  
+GitHub Actions has no cron schedules — it is execution-only. This keeps timing exact and removes the 2–4 hour queue delay GitHub's built-in cron has.
 
-If you want different times, update **both**:
+To change the time a briefing fires:
 
-1. In Google Cloud Console → Cloud Scheduler → edit the job's cron expression
-2. In `.github/workflows/news_bot.yml` → update the matching `cron:` line and the `github.event.schedule` comparison
+1. Go to [Google Cloud Console → Cloud Scheduler](https://console.cloud.google.com/cloudscheduler)
+2. Click the job you want to change (e.g. `finance-news-premarket`)
+3. Click **Edit** → update the cron expression → **Save**
 
-Times use `America/Los_Angeles` timezone — DST is handled automatically.
+Times use `America/Los_Angeles` timezone — DST is handled automatically, no manual changes needed twice a year.
+
+### How to disable a briefing (e.g. stop the Asia session)
+
+In Cloud Scheduler, click the job → **Disable**. GitHub Actions will simply never be triggered for that session.
+
+### How to stop all briefings temporarily
+
+Disable all 3 Cloud Scheduler jobs. The GitHub Actions workflow stays in place and can be re-enabled any time.
+
+### Removing GitHub Actions' built-in cron (already done in this repo)
+
+This repo's workflow uses only `repository_dispatch` (Cloud Scheduler trigger) and `workflow_dispatch` (manual test button). There is no `schedule:` block in `.github/workflows/news_bot.yml` — so there is nothing to remove. If you forked an older version that still has a `schedule:` block, delete those lines from the workflow file.
 
 ---
 

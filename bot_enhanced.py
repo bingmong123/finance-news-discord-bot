@@ -24,7 +24,8 @@ import re
 # ============ IMPORT WATCHLISTS FROM config.py ============
 try:
     from config import (US_WATCHLIST, ASIA_WATCHLIST, ASIA_YAHOO_FORMAT,
-                        NAME_TO_TICKER, US_CATEGORIES, ASIA_CATEGORIES)
+                        NAME_TO_TICKER, US_CATEGORIES, ASIA_CATEGORIES,
+                        US_WATCHLIST_WATCH)
 except ImportError:
     print("[!] config.py not found — using empty watchlists")
     US_WATCHLIST = []
@@ -33,6 +34,7 @@ except ImportError:
     NAME_TO_TICKER = {}
     US_CATEGORIES = {}
     ASIA_CATEGORIES = {}
+    US_WATCHLIST_WATCH = []
 
 # ============ CONFIGURATION ============
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -348,6 +350,18 @@ def build_embeds(articles):
             inline=False,
         )
     embeds.append(portfolio_embed)
+
+    # ── WATCHLIST — stocks being tracked (not owned) ─────────────────────
+    if SESSION != "asia" and US_WATCHLIST_WATCH:
+        print(f"[*] Fetching watchlist prices for: {', '.join(US_WATCHLIST_WATCH)}")
+        watch_prices = fetch_all_prices(US_WATCHLIST_WATCH)
+        watch_lines  = [format_price(watch_prices.get(t), t) for t in US_WATCHLIST_WATCH]
+        watch_embed = discord.Embed(
+            title="👀 WATCHLIST",
+            description="*Tracking — not yet in portfolio*\n" + "\n".join(watch_lines),
+            color=0x5B8DEF,
+        )
+        embeds.append(watch_embed)
 
     # ── Map articles → mentioned stocks ──────────────────────────────────
     all_mentioned    = set()
