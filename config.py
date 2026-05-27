@@ -18,17 +18,17 @@ on the next scheduled run (or manual trigger).
 # US_WATCHLIST is auto-derived — do NOT edit it directly.
 
 US_CATEGORIES = {
-    "📈 Growth / Tech":               ['NVDA', 'PLTR', 'MSFT', 'MSFU', 'CSCO', 'NFLX', 'SPOT', 'NIO', 'ZM'],
-    "📊 ETFs — Broad Market":         ['SPY', 'SCHD', 'SCHG', 'SCHY', 'SCHF', 'VOOG'],
-    "💰 ETFs — Income / Covered Call":['JEPQ', 'YMAX', 'QYLD', 'XDTE'],
-    "🏢 REITs":                       ['O', 'MPT', 'IRM'],
-    "💵 Income / Dividend":           ['AGNC', 'ARCC', 'MAIN', 'GOF', 'PDI'],
+    "🛒 Consumer / Retail":           ['CCL', 'PEP', 'WMT'],
     "⚡ Energy":                      ['EPD', 'ET'],
-    "🛒 Consumer / Retail":           ['PEP', 'WMT', 'CCL'],
-    "📡 Telecom":                     ['T'],
+    "📊 ETFs — Broad Market":         ['SCHD', 'SCHF', 'SCHG', 'SCHY', 'SPY', 'VOOG'],
+    "💰 ETFs — Income / Covered Call":['JEPQ', 'QYLD', 'XDTE', 'YMAX'],
     "🏦 Financials":                  ['NDAQ'],
+    "📈 Growth / Tech":               ['CSCO', 'MSFT', 'MSFU', 'NFLX', 'NIO', 'NVDA', 'PLTR', 'SPOT', 'ZM'],
+    "💵 Income / Dividend":           ['AGNC', 'ARCC', 'GOF', 'MAIN', 'PDI'],
+    "🏢 REITs":                       ['IRM', 'MPT', 'O'],
+    "🔬 Specialty":                   ['SLVM', 'TDUP'],
+    "📡 Telecom":                     ['T'],
     "🚬 Tobacco":                     ['MO'],
-    "🔬 Specialty":                   ['TDUP', 'SLVM'],
 }
 
 # Auto-derived — do not edit directly
@@ -40,7 +40,7 @@ US_WATCHLIST = [t for tickers in US_CATEGORIES.values() for t in tickers]
 # These appear in a separate section below your portfolio.
 # No sector grouping — just live prices at a glance.
 
-US_WATCHLIST_WATCH = ['HOOD', 'BABA', 'BTDR', 'RIOT', 'SMCI']
+US_WATCHLIST_WATCH = ['BABA', 'BTDR', 'HOOD', 'RIOT', 'SMCI', 'SOFI']
 
 
 # ============================================================
@@ -59,12 +59,12 @@ US_WATCHLIST_WATCH = ['HOOD', 'BABA', 'BTDR', 'RIOT', 'SMCI']
 # ============================================================
 
 ASIA_CATEGORIES = {
-    "🏦 Banks / Financials":     ['D05', 'S68', '601318', '601288', '601398', 'MAYBANK'],
-    "🏗️ Infrastructure / REITs": ['66', '823', 'TENAGA'],
-    "💻 Tech / Industrial":      ['1810', 'S63'],
-    "🏭 Steel / Construction":   ['600019', '601668'],
-    "✈️ Airlines":               ['2618', '2610'],
+    "✈️ Airlines":               ['2610', '2618'],
+    "🏦 Banks / Financials":     ['601288', '601318', '601398', 'D05', 'MAYBANK', 'S68'],
     "🍺 Beverages":              ['Y92'],
+    "🏗️ Infrastructure / REITs": ['66', '823', 'TENAGA'],
+    "🏭 Steel / Construction":   ['600019', '601668'],
+    "💻 Tech / Industrial":      ['1810', 'S63'],
 }
 
 # Auto-derived — do not edit directly
@@ -229,4 +229,6 @@ NAME_TO_TICKER = {
     'super micro': 'SMCI',
     'supermicro': 'SMCI',
     'super micro computer': 'SMCI',
+    'sofi': 'SOFI',
+    'sofi technologies': 'SOFI',
 }
