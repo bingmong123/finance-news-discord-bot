@@ -17,7 +17,7 @@ Three automatic briefings per weekday, delivered to your Discord channel:
 
 | Time (PT) | Briefing | Coverage |
 |-----------|----------|----------|
-| **6:00 AM** | 🇺🇸 US Pre-Market | Overnight + weekend news, full portfolio prices |
+| **7:00 AM** | 🇺🇸 US Pre-Market | Overnight + weekend news, full portfolio prices |
 | **10:30 AM** | 📊 US Midday | Mid-session check-in, portfolio update |
 | **10:00 PM** | 🌏 Asia Markets | Asia session prep (Sun–Thu nights) |
 
@@ -236,11 +236,11 @@ gcloud services enable cloudscheduler.googleapis.com
 
 gcloud scheduler jobs create http finance-news-premarket \
   --location=$LOCATION \
-  --schedule="0 6 * * 1-5" \
+  --schedule="0 7 * * 1-5" \
   --uri="$URL" --http-method=POST \
   --headers="Authorization=token ${PAT},Content-Type=application/json,Accept=application/vnd.github.v3+json" \
   --message-body='{"event_type":"finance_news_trigger","client_payload":{"session":"us_premarket"}}' \
-  --time-zone="$TZ" --description="Finance News Bot - US Pre-Market 6:00 AM PT"
+  --time-zone="$TZ" --description="Finance News Bot - US Pre-Market 7:00 AM PT"
 
 gcloud scheduler jobs create http finance-news-midday \
   --location=$LOCATION \
